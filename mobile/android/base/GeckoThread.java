@@ -215,6 +215,7 @@ public class GeckoThread extends Thread implements GeckoEventListener {
     @Override
     public void handleMessage(String event, JSONObject message) {
         if ("Gecko:Ready".equals(event)) {
+            Log.d(LOGTAG, "GeckoThread Gecko:Ready");
             EventDispatcher.getInstance().unregisterGeckoThreadListener(this, event);
 
             // Synchronize with addPendingEvent, so that all pending events are sent,

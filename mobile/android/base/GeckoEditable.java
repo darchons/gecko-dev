@@ -47,7 +47,7 @@ final class GeckoEditable
         implements InvocationHandler, Editable,
                    GeckoEditableClient, GeckoEditableListener, GeckoEventListener {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     private static final String LOGTAG = "GeckoEditable";
 
     // Filters to implement Editable's filtering functionality
@@ -340,6 +340,9 @@ final class GeckoEditable
                 mActionsActive.release();
             } else if (DEBUG && !mFocused) {
                 Log.d(LOGTAG, "skipped syncWithGecko (no focus)");
+                for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+                    Log.d(LOGTAG, "> " + ste);
+                }
             }
         }
 
@@ -568,6 +571,9 @@ final class GeckoEditable
             // Android may be holding an old InputConnection; ignore
             if (DEBUG) {
                 Log.i(LOGTAG, "getEditable() called on non-IC thread");
+                for (StackTraceElement ste : Thread.currentThread().getStackTrace()) {
+                    Log.i(LOGTAG, "  " + ste);
+                }
             }
             return null;
         }
@@ -835,13 +841,13 @@ final class GeckoEditable
             // cases, and we don't want to unregister an event that was not registered.
             mGeckoFocused = false;
             mSuppressCompositions = false;
-            EventDispatcher.getInstance().
-                unregisterGeckoThreadListener(this, "TextSelection:DraggingHandle");
+            //EventDispatcher.getInstance().
+            //    unregisterGeckoThreadListener(this, "TextSelection:DraggingHandle");
         } else if (type == NOTIFY_IME_OF_FOCUS) {
             mGeckoFocused = true;
             mSuppressCompositions = false;
-            EventDispatcher.getInstance().
-                registerGeckoThreadListener(this, "TextSelection:DraggingHandle");
+            //EventDispatcher.getInstance().
+            //    registerGeckoThreadListener(this, "TextSelection:DraggingHandle");
         }
     }
 
@@ -1086,27 +1092,9 @@ final class GeckoEditable
         try {
             ret = method.invoke(target, args);
         } catch (InvocationTargetException e) {
-            // Bug 817386
-            // Most likely Gecko has changed the text while GeckoInputConnection is
-            // trying to access the text. If we pass through the exception here, Fennec
-            // will crash due to a lack of exception handler. Log the exception and
-            // return an empty value instead.
-            if (!(e.getCause() instanceof IndexOutOfBoundsException)) {
-                // Only handle IndexOutOfBoundsException for now,
-                // as other exceptions might signal other bugs
-                throw e;
-            }
-            Log.w(LOGTAG, "Exception in GeckoEditable." + method.getName(), e.getCause());
-            Class<?> retClass = method.getReturnType();
-            if (retClass == Character.TYPE) {
-                ret = '\0';
-            } else if (retClass == Integer.TYPE) {
-                ret = 0;
-            } else if (retClass == String.class) {
-                ret = "";
-            } else {
-                ret = null;
-            }
+            // Only handle IndexOutOfBoundsException for now,
+            // as other exceptions might signal other bugs
+            throw e;
         }
         if (DEBUG) {
             StringBuilder log = new StringBuilder(method.getName());
@@ -1316,11 +1304,11 @@ final class GeckoEditable
 
     @Override
     public void handleMessage(String event, JSONObject message) {
-        if (!"TextSelection:DraggingHandle".equals(event)) {
+        //if (!"TextSelection:DraggingHandle".equals(event)) {
             return;
-        }
+        //}
 
-        mSuppressCompositions = message.optBoolean("dragging", false);
+        //mSuppressCompositions = message.optBoolean("dragging", false);
     }
 }
 

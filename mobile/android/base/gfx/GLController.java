@@ -70,6 +70,7 @@ public class GLController {
     };
 
     private GLController() {
+        Log.d(LOGTAG, "GLController ctor");
     }
 
     static GLController getInstance(LayerView view) {
@@ -81,6 +82,7 @@ public class GLController {
     }
 
     synchronized void serverSurfaceDestroyed() {
+        Log.d(LOGTAG, "GLController serverSurfaceDestroyed");
         ThreadUtils.assertOnUiThread();
 
         mServerSurfaceValid = false;
@@ -104,6 +106,7 @@ public class GLController {
     }
 
     synchronized void serverSurfaceChanged(int newWidth, int newHeight) {
+        Log.d(LOGTAG, "GLController serverSurfaceChanged");
         ThreadUtils.assertOnUiThread();
 
         mWidth = newWidth;
@@ -124,6 +127,7 @@ public class GLController {
     }
 
     void updateCompositor() {
+        Log.d(LOGTAG, "GLController updateCompositor");
         ThreadUtils.assertOnUiThread();
 
         if (mCompositorCreated) {
@@ -135,6 +139,7 @@ public class GLController {
         }
 
         if (!AttemptPreallocateEGLSurfaceForCompositor()) {
+            Log.d(LOGTAG, "GLController !AttemptPreallocateEGLSurfaceForCompositor");
             return;
         }
 
@@ -143,11 +148,15 @@ public class GLController {
         // happen without needing to block anywhere. Do it with a synchronous Gecko event so that the
         // Android doesn't have a chance to destroy our surface in between.
         if (GeckoThread.checkLaunchState(GeckoThread.LaunchState.GeckoRunning)) {
+            Log.d(LOGTAG, "GLController creating");
             GeckoAppShell.sendEventToGeckoSync(GeckoEvent.createCompositorCreateEvent(mWidth, mHeight));
+        } else {
+            Log.d(LOGTAG, "GLController not running");
         }
     }
 
     void compositorCreated() {
+        Log.d(LOGTAG, "GLController compositorCreated");
         // This is invoked on the compositor thread, while the java UI thread
         // is blocked on the gecko sync event in updateCompositor() above
         mCompositorCreated = true;
@@ -263,6 +272,7 @@ public class GLController {
     }
 
     void resumeCompositor(int width, int height) {
+        Log.d(LOGTAG, "GLController resumeCompositor");
         // Asking Gecko to resume the compositor takes too long (see
         // https://bugzilla.mozilla.org/show_bug.cgi?id=735230#c23), so we
         // resume the compositor directly. We still need to inform Gecko about

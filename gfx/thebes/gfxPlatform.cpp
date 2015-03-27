@@ -975,14 +975,22 @@ gfxPlatform::GetScaledFontForFont(DrawTarget* aTarget, gfxFont *aFont)
 int
 gfxPlatform::GetTileWidth()
 {
-  MOZ_ASSERT(mTileWidth != -1);
+  if (mTileWidth == -1) {
+    NS_WARNING("mTileWidth == -1!!!");
+    // sleep(10);
+  }
+  // MOZ_ASSERT(mTileWidth != -1);
   return mTileWidth;
 }
 
 int
 gfxPlatform::GetTileHeight()
 {
-  MOZ_ASSERT(mTileHeight != -1);
+  if (mTileHeight == -1) {
+    NS_WARNING("mTileHeight == -1!!!");
+    // sleep(10);
+  }
+  // MOZ_ASSERT(mTileHeight != -1);
   return mTileHeight;
 }
 

@@ -487,7 +487,7 @@ void mozilla_sampler_init(void* stackTop)
 #if defined(XP_WIN) || defined(XP_MACOSX) \
     || (defined(SPS_ARCH_arm) && defined(linux)) \
     || defined(SPS_PLAT_amd64_linux) || defined(SPS_PLAT_x86_linux)
-                         , "stackwalk"
+                         //, "stackwalk"
 #endif
 #if defined(SPS_OS_android) && !defined(MOZ_WIDGET_GONK)
                          , "java"
@@ -496,7 +496,7 @@ void mozilla_sampler_init(void* stackTop)
 
   const char* threadFilters[] = { "GeckoMain", "Compositor" };
 
-  profiler_start(PROFILE_DEFAULT_ENTRY, PROFILE_DEFAULT_INTERVAL,
+  profiler_start(PROFILE_DEFAULT_ENTRY, 1000 /*PROFILE_DEFAULT_INTERVAL*/,
                          features, MOZ_ARRAY_LENGTH(features),
                          threadFilters, MOZ_ARRAY_LENGTH(threadFilters));
   LOG("END   mozilla_sampler_init");

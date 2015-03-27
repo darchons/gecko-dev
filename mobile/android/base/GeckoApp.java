@@ -676,6 +676,7 @@ public abstract class GeckoApp
             if (event.equals("Gecko:DelayedStartup")) {
                 ThreadUtils.postToBackgroundThread(new UninstallListener.DelayedStartupTask(this));
             } else if (event.equals("Gecko:Ready")) {
+                Log.d(LOGTAG, "GeckoApp Gecko:Ready");
                 mGeckoReadyStartupTimer.stop();
                 geckoConnected();
 
