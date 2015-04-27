@@ -34,6 +34,7 @@
 #include "nsDirectoryServiceDefs.h"
 #include "nsExceptionHandler.h"
 #include "nsString.h"
+#include "nsThreadManager.h"
 #include "nsThreadUtils.h"
 #include "nsJSUtils.h"
 #include "nsWidgetsCID.h"
@@ -430,7 +431,10 @@ XRE_InitChildProcess(int aArgc,
 
   mozilla::LogModule::Init(aArgc, aArgv);
 
+  nsThreadManager::get().Init();
+
   AUTO_PROFILER_INIT;
+
   AUTO_PROFILER_LABEL("XRE_InitChildProcess", OTHER);
 
   // Ensure AbstractThread is minimally setup, so async IPC messages

@@ -92,6 +92,7 @@
 #include "nsIWidget.h"
 #include "nsIDocShell.h"
 #include "nsAppShellCID.h"
+#include "nsThreadManager.h"
 #include "mozilla/scache/StartupCache.h"
 #include "gfxPlatform.h"
 #include "gfxPrefs.h"
@@ -4800,7 +4801,10 @@ XREMain::XRE_main(int argc, char* argv[], const BootstrapConfig& aConfig)
   CodeCoverageHandler::Init();
 #endif
 
+  nsThreadManager::get().Init();
+
   AUTO_PROFILER_INIT;
+
   AUTO_PROFILER_LABEL("XREMain::XRE_main", OTHER);
 
   nsresult rv = NS_OK;

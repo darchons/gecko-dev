@@ -192,6 +192,7 @@ LOCAL_INCLUDES += [
     '/testing/gtest/mozilla',
     '/toolkit/crashreporter',
     '/xpcom/build',
+    '/xpcom/threads',
 ]
 
 if CONFIG['MOZ_SANDBOX'] and CONFIG['OS_ARCH'] == 'WINNT':

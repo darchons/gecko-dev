@@ -424,6 +424,9 @@ nsThreadManager::CreateCurrentThread(SynchronizedEventQueue* aQueue,
 nsThread*
 nsThreadManager::GetCurrentThread()
 {
+  // GetCurrentThread must be called during nsThreadManager lifetime.
+  // MOZ_ASSERT(mMainThread);
+
   // read thread local storage
   void* data = PR_GetThreadPrivate(mCurThreadIndex);
   if (data) {
