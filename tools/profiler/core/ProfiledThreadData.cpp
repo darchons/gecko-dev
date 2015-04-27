@@ -35,6 +35,7 @@ ProfiledThreadData::~ProfiledThreadData()
 
 void
 ProfiledThreadData::StreamJSON(const ProfileBuffer& aBuffer, JSContext* aCx,
+                               ProfilingStack* aPseudoStack,
                                SpliceableJSONWriter& aWriter,
                                const TimeStamp& aProcessStartTime, double aSinceTime)
 {
@@ -61,7 +62,7 @@ ProfiledThreadData::StreamJSON(const ProfileBuffer& aBuffer, JSContext* aCx,
                             aBuffer, aWriter,
                             aProcessStartTime,
                             mThreadInfo->RegisterTime(), mUnregisterTime,
-                            aSinceTime, uniqueStacks);
+                            aSinceTime, aPseudoStack, uniqueStacks);
 
     aWriter.StartObjectProperty("stackTable");
     {
@@ -118,6 +119,7 @@ StreamSamplesAndMarkers(const char* aName,
                         const TimeStamp& aRegisterTime,
                         const TimeStamp& aUnregisterTime,
                         double aSinceTime,
+                        ProfilingStack* aPseudoStack,
                         UniqueStacks& aUniqueStacks)
 {
   aWriter.StringProperty("processType",
@@ -160,6 +162,37 @@ StreamSamplesAndMarkers(const char* aName,
     aWriter.EndArray();
   }
   aWriter.EndObject();
+
+  if (aPseudoStack && aPseudoStack->mTrace && strcmp(aName, "SyncProfile")) {
+    aWriter.StartObjectProperty("trace");
+    {
+      {
+        JSONSchemaWriter schema(aWriter);
+        schema.WriteField("label");
+        schema.WriteField("time");
+      }
+      aWriter.StartArrayProperty("data");
+      {
+        for (uintptr_t i = 0; i < aPseudoStack->mTracePointer; ++i) {
+          aWriter.StartArrayElement();
+          {
+            const auto& trace = aPseudoStack->mTrace[i];
+            aUniqueStacks.mUniqueStrings->WriteElement(
+                aWriter, trace.mLabel ? trace.mLabel : "");
+#ifdef __linux__
+            aWriter.DoubleElement(double(uint64_t(trace.mTime.tv_sec) * 1e9 +
+                uint64_t(trace.mTime.tv_nsec) -
+                *reinterpret_cast<const uint64_t*>(&aProcessStartTime)) /
+                1.0e6);
+#endif
+          }
+          aWriter.EndArray();
+        }
+      }
+      aWriter.EndArray();
+    }
+    aWriter.EndObject();
+  }
 
   aWriter.StartObjectProperty("markers");
   {

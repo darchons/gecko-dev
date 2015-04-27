@@ -60,6 +60,7 @@ public:
   mozilla::Maybe<uint64_t>& LastSample() { return mLastSample; }
 
   void StreamJSON(const ProfileBuffer& aBuffer, JSContext* aCx,
+                  ProfilingStack* aPseudoStack,
                   SpliceableJSONWriter& aWriter,
                   const mozilla::TimeStamp& aProcessStartTime,
                   double aSinceTime);
@@ -130,6 +131,7 @@ StreamSamplesAndMarkers(const char* aName, int aThreadId,
                         const TimeStamp& aRegisterTime,
                         const TimeStamp& aUnregisterTime,
                         double aSinceTime,
+                        ProfilingStack* aPseudoStack,
                         UniqueStacks& aUniqueStacks);
 
 #endif  // ProfiledThreadData_h

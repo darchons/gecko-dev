@@ -550,7 +550,14 @@ js::InternalCallOrConstruct(JSContext* cx, const CallArgs& args, MaybeConstruct 
                 native = jitInfo->ignoresReturnValueMethod;
             }
         }
-        return CallJSNative(cx, native, args);
+        if (!cx->runtime()->geckoProfiler().enabled()) {
+          return CallJSNative(cx, native, args);
+        }
+        auto& profiler = cx->geckoProfiler();
+        profiler.enter(cx, nullptr, fun);
+        const auto& ret = CallJSNative(cx, native, args);
+        profiler.exit(nullptr, fun);
+        return ret;
     }
 
     if (!JSFunction::getOrCreateScript(cx, fun)) {

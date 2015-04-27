@@ -7,13 +7,18 @@
 #ifndef js_ProfilingStack_h
 #define js_ProfilingStack_h
 
+#include "mozilla/UniquePtr.h"
+
 #include <algorithm>
 #include <stdint.h>
 
 #include "jstypes.h"
-
 #include "js/TypeDecls.h"
 #include "js/Utility.h"
+
+#ifdef __linux__
+#include <time.h>
+#endif
 
 #ifdef JS_BROKEN_GCC_ATTRIBUTE_WARNING
 #pragma GCC diagnostic push
@@ -307,6 +312,13 @@ class ProfilingStackFrame
     static const int32_t NullPCOffset = -1;
 };
 
+struct TraceEntry {
+#ifdef __linux__
+    timespec mTime;
+#endif
+    const char* mLabel;
+};
+
 JS_FRIEND_API(void)
 SetContextProfilingStack(JSContext* cx, ProfilingStack* profilingStack);
 
@@ -358,15 +370,71 @@ class ProfilingStack final
   public:
     ProfilingStack()
       : stackPointer(0)
+      , mTracePointer(0)
+      , mStrPoolPointer(0)
     {}
 
     ~ProfilingStack();
+
+    void pushTrace(const char* aName, const char* aDynamicString)
+    {
+      if (!mTrace || mTracePointer >= TRACE_SIZE) {
+        return;
+      }
+      auto& trace = mTrace[mTracePointer++];
+      if (!aDynamicString) {
+        trace.mLabel = aName;
+      } else {
+        uintptr_t srcAligned = uintptr_t(aDynamicString) &
+                               ~(sizeof(intptr_t) - 1);
+        uintptr_t srcLen = (((uintptr_t(aDynamicString) +
+                            strlen(aDynamicString)) |
+                            (sizeof(intptr_t) - 1)) + 1) - srcAligned;
+        if (STRPOOL_SIZE - mStrPoolPointer < srcLen) {
+          trace.mLabel = "(anonymous)";
+        } else {
+          memcpy(&mStrPool[mStrPoolPointer],
+              reinterpret_cast<const void*>(srcAligned), srcLen);
+          trace.mLabel = &mStrPool[mStrPoolPointer +
+              (uintptr_t(aDynamicString) & (sizeof(intptr_t) - 1))];
+          mStrPoolPointer += srcLen;
+        }
+      }
+#ifdef __linux__
+      clock_gettime(CLOCK_MONOTONIC, &trace.mTime);
+#endif
+    }
+
+    void popTrace()
+    {
+      if (!mTrace || mTracePointer >= TRACE_SIZE) {
+        return;
+      }
+      auto& trace = mTrace[mTracePointer++];
+      trace.mLabel = nullptr;
+#ifdef __linux__
+      clock_gettime(CLOCK_MONOTONIC, &trace.mTime);
+      auto& prev = mTrace[mTracePointer - 2];
+      if (prev.mLabel &&
+          ((trace.mTime.tv_sec == prev.mTime.tv_sec &&
+          trace.mTime.tv_nsec - prev.mTime.tv_nsec < 10000) ||
+          (trace.mTime.tv_sec == prev.mTime.tv_sec + 1 &&
+          prev.mTime.tv_nsec - trace.mTime.tv_nsec > (1000000000 - 10000)))) {
+        mTracePointer -= 2;
+        const uintptr_t strIdx = uintptr_t(prev.mLabel) - uintptr_t(&mStrPool[0]);
+        if (strIdx < STRPOOL_SIZE) {
+          mStrPoolPointer = strIdx & ~(sizeof(intptr_t) - 1);
+        }
+      }
+#endif
+    }
 
     void pushLabelFrame(const char* label, const char* dynamicString, void* sp,
                         uint32_t line, js::ProfilingStackFrame::Category category) {
         uint32_t oldStackPointer = stackPointer;
 
         if (MOZ_LIKELY(capacity > oldStackPointer) || MOZ_LIKELY(ensureCapacitySlow())) {
+            pushTrace(label, dynamicString);
             frames[oldStackPointer].initLabelFrame(label, dynamicString, sp, line, category);
         }
 
@@ -397,6 +465,7 @@ class ProfilingStack final
         uint32_t oldStackPointer = stackPointer;
 
         if (MOZ_LIKELY(capacity > oldStackPointer) || MOZ_LIKELY(ensureCapacitySlow())) {
+            pushTrace(label, dynamicString);
             frames[oldStackPointer].initJsFrame(label, dynamicString, script, pc);
         }
 
@@ -413,6 +482,13 @@ class ProfilingStack final
         // stackPointer.
         uint32_t oldStackPointer = stackPointer;
         stackPointer = oldStackPointer - 1;
+
+        if (stackPointer < capacity) {
+          if (frames[stackPointer].isLabelFrame() ||
+              frames[stackPointer].isJsFrame()) {
+            popTrace();
+          }
+        }
     }
 
     uint32_t stackSize() const { return std::min(uint32_t(stackPointer), stackCapacity()); }
@@ -455,6 +531,29 @@ class ProfilingStack final
     // for more details.
     mozilla::Atomic<uint32_t, mozilla::ReleaseAcquire,
                     mozilla::recordreplay::Behavior::DontPreserve> stackPointer;
+
+public:
+  static const size_t TRACE_SIZE = 2 * 1024 * 1024 / sizeof(js::TraceEntry); // 2MB buffer
+  static const size_t STRPOOL_SIZE = 4 * 1024 * 1024 / sizeof(char); // 4MB buffer
+  mozilla::UniquePtr<js::TraceEntry[]> mTrace;
+  uintptr_t mTracePointer;
+  mozilla::UniquePtr<char[]> mStrPool;
+  uintptr_t mStrPoolPointer;
+
+  void EnableTracing() {
+    mTracePointer = 0;
+    mStrPoolPointer = 0;
+    if (!mTrace) {
+      mTrace = mozilla::MakeUnique<js::TraceEntry[]>(TRACE_SIZE);
+      mStrPool = mozilla::MakeUnique<char[]>(STRPOOL_SIZE);
+    }
+    for (uintptr_t i = 0; i < stackPointer; ++i) {
+      const auto& frame = frames[i];
+      if (frame.isLabelFrame() || frame.isJsFrame()) {
+        pushTrace(frame.label(), frame.dynamicString());
+      }
+    }
+  }
 };
 
 namespace js {

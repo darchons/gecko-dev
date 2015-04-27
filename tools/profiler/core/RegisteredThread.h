@@ -248,6 +248,11 @@ public:
     }
   }
 
+  void EnableTracing()
+  {
+    RacyRegisteredThread().ProfilingStack().EnableTracing();
+  }
+
 private:
   class RacyRegisteredThread mRacyRegisteredThread;
 

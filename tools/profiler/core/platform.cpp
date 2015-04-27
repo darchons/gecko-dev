@@ -1883,7 +1883,9 @@ locked_profiler_stream_json_for_this_process(PSLockRef aLock,
       JSContext* cx =
         registeredThread ? registeredThread->GetJSContext() : nullptr;
       ProfiledThreadData* profiledThreadData = thread.second();
-      profiledThreadData->StreamJSON(buffer, cx, aWriter,
+      profiledThreadData->StreamJSON(buffer, cx,
+                                     &registeredThread->RacyRegisteredThread().ProfilingStack(),
+                                     aWriter,
                                      CorePS::ProcessStartTime(), aSinceTime);
     }
 
@@ -1899,7 +1901,7 @@ locked_profiler_stream_json_for_this_process(PSLockRef aLock,
        new ThreadInfo("Java Main Thread", 0, false, CorePS::ProcessStartTime());
      ProfiledThreadData profiledThreadData(threadInfo, nullptr,
                                            ActivePS::FeatureResponsiveness(aLock));
-     profiledThreadData.StreamJSON(*javaBuffer.get(), nullptr, aWriter,
+     profiledThreadData.StreamJSON(*javaBuffer.get(), nullptr, nullptr, aWriter,
                                    CorePS::ProcessStartTime(), aSinceTime);
 
      java::GeckoJavaSampler::Unpause();
@@ -3008,6 +3010,10 @@ locked_profiler_start(PSLockRef aLock, uint32_t aEntries, double aInterval,
     CorePS::RegisteredThreads(aLock);
   for (auto& registeredThread : registeredThreads) {
     RefPtr<ThreadInfo> info = registeredThread->Info();
+
+    if (info->ThreadId() == tid) {
+      registeredThread->EnableTracing();
+    }
 
     if (ActivePS::ShouldProfileThread(aLock, info)) {
       nsCOMPtr<nsIEventTarget> eventTarget = registeredThread->GetEventTarget();

@@ -8,6 +8,7 @@
 #define ThreadInfo_h
 
 #include "mozilla/TimeStamp.h"
+#include "js/ProfilingStack.h"
 
 #include "nsString.h"
 

@@ -164,11 +164,12 @@ GeckoProfilerRuntime::profileString(JSScript* script, JSFunction* maybeFun)
 {
     auto locked = strings.lock();
 
-    ProfileStringMap::AddPtr s = locked->lookupForAdd(script);
+    const auto maybeScript = script ? script : reinterpret_cast<JSScript*>(maybeFun);
+    ProfileStringMap::AddPtr s = locked->lookupForAdd(maybeScript);
 
     if (!s) {
         auto str = allocProfileString(script, maybeFun);
-        if (!str || !locked->add(s, script, std::move(str))) {
+        if (!str || !locked->add(s, maybeScript, std::move(str))) {
             return nullptr;
         }
     }
@@ -219,12 +220,19 @@ GeckoProfilerThread::enter(JSContext* cx, JSScript* script, JSFunction* maybeFun
     if (sp > 0 && sp - 1 < profilingStack_->stackCapacity()) {
         size_t start = (sp > 4) ? sp - 4 : 0;
         for (size_t i = start; i < sp - 1; i++) {
-            MOZ_ASSERT_IF(profilingStack_->frames[i].isJsFrame(), profilingStack_->frames[i].pc());
+            MOZ_ASSERT_IF(profilingStack_->frames[i].isJsFrame() &&
+                          profilingStack_->frames[i].rawScript(),
+                          profilingStack_->frames[i].pc());
         }
     }
 #endif
 
-    profilingStack_->pushJsFrame("", dynamicString, script, script->code());
+    if (script) {
+      profilingStack_->pushJsFrame("", dynamicString, script, script->code());
+    } else {
+      profilingStack_->pushJsFrame("", dynamicString,
+                                /* script = */ nullptr, /* code = */ nullptr);
+    }
     return true;
 }
 
@@ -236,7 +244,7 @@ GeckoProfilerThread::exit(JSScript* script, JSFunction* maybeFun)
 #ifdef DEBUG
     /* Sanity check to make sure push/pop balanced */
     uint32_t sp = profilingStack_->stackPointer;
-    if (sp < profilingStack_->stackCapacity()) {
+    if (script && sp < profilingStack_->stackCapacity()) {
         JSRuntime* rt = script->runtimeFromMainThread();
         const char* dynamicString = rt->geckoProfiler().profileString(script, maybeFun);
         /* Can't fail lookup because we should already be in the set */
@@ -283,14 +291,14 @@ GeckoProfilerRuntime::allocProfileString(JSScript* script, JSFunction* maybeFun)
     JSAtom* atom = maybeFun ? maybeFun->displayAtom() : nullptr;
 
     // Get the script filename, if any, and its length.
-    const char* filename = script->filename();
+    const char* filename = script ? script->filename() : "<native>";
     if (filename == nullptr) {
         filename = "<unknown>";
     }
     size_t lenFilename = strlen(filename);
 
     // Get the line number and its length as a string.
-    uint32_t lineno = script->lineno();
+    uint32_t lineno = script ? script->lineno() : 0;
     size_t lenLineno = 1;
     for (uint32_t i = lineno; i /= 10; lenLineno++);
 
@@ -346,6 +354,8 @@ void
 GeckoProfilerRuntime::fixupStringsMapAfterMovingGC()
 {
     auto locked = strings.lock();
+
+    /*
     for (ProfileStringMap::Enum e(locked.get()); !e.empty(); e.popFront()) {
         JSScript* script = e.front().key();
         if (IsForwarded(script)) {
@@ -353,6 +363,7 @@ GeckoProfilerRuntime::fixupStringsMapAfterMovingGC()
             e.rekeyFront(script);
         }
     }
+    */
 }
 
 #ifdef JSGC_HASH_TABLE_CHECKS
@@ -360,12 +371,15 @@ void
 GeckoProfilerRuntime::checkStringsMapAfterMovingGC()
 {
     auto locked = strings.lock();
+
+    /*
     for (auto r = locked->all(); !r.empty(); r.popFront()) {
         JSScript* script = r.front().key();
         CheckGCThingAfterMovingGC(script);
         auto ptr = locked->lookup(script);
         MOZ_RELEASE_ASSERT(ptr.found() && &*ptr == &r.front());
     }
+    */
 }
 #endif
 
