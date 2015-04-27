@@ -770,7 +770,14 @@ js::Invoke(JSContext* cx, CallArgs args, MaybeConstruct construct)
 
     if (fun->isNative()) {
         MOZ_ASSERT_IF(construct, !fun->isConstructor());
-        return CallJSNative(cx, fun->native(), args);
+        auto& profiler = cx->runtime()->spsProfiler;
+        if (!profiler.enabled()) {
+          return CallJSNative(cx, fun->native(), args);
+        }
+        profiler.enter(nullptr, fun);
+        const auto& ret = CallJSNative(cx, fun->native(), args);
+        profiler.exit(nullptr, fun);
+        return ret;
     }
 
     if (!fun->getOrCreateScript(cx))

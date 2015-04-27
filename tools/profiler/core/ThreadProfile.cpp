@@ -160,6 +160,36 @@ void ThreadProfile::StreamSamplesAndMarkers(SpliceableJSONWriter& aWriter, doubl
   }
   aWriter.EndObject();
 
+  if (mPseudoStack->mTrace && !AsSyncProfile()) {
+    aWriter.StartObjectProperty("trace");
+    {
+      {
+        JSONSchemaWriter schema(aWriter);
+        schema.WriteField("label");
+        schema.WriteField("time");
+      }
+      aWriter.StartArrayProperty("data");
+      {
+        for (uintptr_t i = 0; i < mPseudoStack->mTracePointer; ++i) {
+          aWriter.StartArrayElement();
+          {
+            const auto& trace = mPseudoStack->mTrace[i];
+            aUniqueStacks.mUniqueStrings.WriteElement(
+                aWriter, trace.mLabel ? trace.mLabel : "");
+#ifdef __linux__
+            aWriter.DoubleElement(double(uint64_t(trace.mTime.tv_sec) * 1e9 +
+                uint64_t(trace.mTime.tv_nsec) -
+                *reinterpret_cast<const uint64_t*>(&sStartTime)) / 1.0e6);
+#endif
+          }
+          aWriter.EndArray();
+        }
+      }
+      aWriter.EndArray();
+    }
+    aWriter.EndObject();
+  }
+
   aWriter.StartObjectProperty("markers");
   {
     {

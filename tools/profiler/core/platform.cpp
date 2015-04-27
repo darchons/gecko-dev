@@ -701,6 +701,13 @@ void mozilla_sampler_start(int aProfileEntries, double aInterval,
                       aFeatures, aFeatureCount,
                       aThreadNameFilters, aFilterCount);
 
+  {
+    const auto stack = tlsPseudoStack.get();
+    if (stack) {
+      stack->enableTracing();
+    }
+  }
+
   tlsTicker.set(t);
   t->Start();
   if (t->ProfileJS() || t->InPrivacyMode()) {

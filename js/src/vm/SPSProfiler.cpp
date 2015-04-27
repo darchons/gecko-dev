@@ -28,6 +28,12 @@ SPSProfiler::SPSProfiler(JSRuntime* rt)
     stack_(nullptr),
     size_(nullptr),
     max_(0),
+    trace_(nullptr),
+    tracePtr_(nullptr),
+    traceMax_(0),
+    strPool_(nullptr),
+    strPoolPtr_(nullptr),
+    strPoolMax_(0),
     slowAssertions(false),
     enabled_(false),
     lock_(nullptr),
@@ -66,6 +72,19 @@ SPSProfiler::setProfilingStack(ProfileEntry* stack, uint32_t* size, uint32_t max
     stack_ = stack;
     size_  = size;
     max_   = max;
+}
+
+void
+SPSProfiler::setProfilingTrace(TraceEntry* trace, uintptr_t* ptr, size_t max,
+                               char* str, uintptr_t* strPtr, size_t strMax)
+{
+    AutoSPSLock lock(lock_);
+    trace_ = trace;
+    tracePtr_ = ptr;
+    traceMax_ = max;
+    strPool_ = str;
+    strPoolPtr_ = strPtr;
+    strPoolMax_ = strMax;
 }
 
 void
@@ -144,13 +163,14 @@ SPSProfiler::profileString(JSScript* script, JSFunction* maybeFun)
 {
     AutoSPSLock lock(lock_);
     MOZ_ASSERT(strings.initialized());
-    ProfileStringMap::AddPtr s = strings.lookupForAdd(script);
+    const auto maybeScript = script ? script : reinterpret_cast<JSScript*>(maybeFun);
+    ProfileStringMap::AddPtr s = strings.lookupForAdd(maybeScript);
     if (s)
         return s->value();
     const char* str = allocProfileString(script, maybeFun);
     if (str == nullptr)
         return nullptr;
-    if (!strings.add(s, script, str)) {
+    if (!strings.add(s, maybeScript, str)) {
         js_free(const_cast<char*>(str));
         return nullptr;
     }
@@ -205,7 +225,31 @@ SPSProfiler::enter(JSScript* script, JSFunction* maybeFun)
     }
 #endif
 
-    push(str, nullptr, script, script->code(), /* copy = */ true);
+    if (script) {
+      push(str, nullptr, script, script->code(), /* copy = */ true);
+    } else {
+      push(str, &str, nullptr, nullptr, /* copy = */ true);
+    }
+
+    if (trace_ && *tracePtr_ < traceMax_) {
+      auto& trace = trace_[(*tracePtr_)++];
+      uintptr_t srcAligned = uintptr_t(str) & ~(sizeof(intptr_t) - 1);
+      uintptr_t srcLen = (((uintptr_t(str) + strlen(str)) |
+          (sizeof(intptr_t) - 1)) + 1) - srcAligned;
+      if (strPoolMax_ - *strPoolPtr_ < srcLen) {
+        trace.mLabel = "(anonymous)";
+      } else {
+        memcpy(&strPool_[*strPoolPtr_],
+            reinterpret_cast<const void*>(srcAligned), srcLen);
+        trace.mLabel = &strPool_[*strPoolPtr_ +
+            (uintptr_t(str) & (sizeof(intptr_t) - 1))];
+        *strPoolPtr_ += srcLen;
+      }
+#ifdef __linux__
+      clock_gettime(CLOCK_MONOTONIC, &trace.mTime);
+#endif
+    }
+
     return true;
 }
 
@@ -214,9 +258,29 @@ SPSProfiler::exit(JSScript* script, JSFunction* maybeFun)
 {
     pop();
 
+    if (trace_ && *tracePtr_ < traceMax_) {
+      auto& trace = trace_[(*tracePtr_)++];
+      trace.mLabel = nullptr;
+#ifdef __linux__
+      clock_gettime(CLOCK_MONOTONIC, &trace.mTime);
+      auto& prev = trace_[(*tracePtr_) - 2];
+      if (prev.mLabel &&
+          ((trace.mTime.tv_sec == prev.mTime.tv_sec &&
+          trace.mTime.tv_nsec - prev.mTime.tv_nsec < 100000) ||
+          (trace.mTime.tv_sec == prev.mTime.tv_sec + 1 &&
+          prev.mTime.tv_nsec - trace.mTime.tv_nsec > (1000000000 - 100000)))) {
+        *tracePtr_ -= 2;
+        const uintptr_t strIdx = uintptr_t(prev.mLabel) - uintptr_t(strPool_);
+        if (strIdx < strPoolMax_) {
+          *strPoolPtr_ = strIdx & ~(sizeof(intptr_t) - 1);
+        }
+      }
+#endif
+    }
+
 #ifdef DEBUG
     /* Sanity check to make sure push/pop balanced */
-    if (*size_ < max_) {
+    if (script && *size_ < max_) {
         const char* str = profileString(script, maybeFun);
         /* Can't fail lookup because we should already be in the set */
         MOZ_ASSERT(str != nullptr);
@@ -317,13 +381,13 @@ SPSProfiler::allocProfileString(JSScript* script, JSFunction* maybeFun)
     JSAtom* atom = maybeFun ? maybeFun->displayAtom() : nullptr;
 
     // Get the script filename, if any, and its length.
-    const char* filename = script->filename();
+    const char* filename = script ? script->filename() : "<native>";
     if (filename == nullptr)
         filename = "<unknown>";
     size_t lenFilename = strlen(filename);
 
     // Get the line number and its length as a string.
-    uint64_t lineno = script->lineno();
+    uint64_t lineno = script ? script->lineno() : 0;
     size_t lenLineno = 1;
     for (uint64_t i = lineno; i /= 10; lenLineno++);
 
@@ -437,6 +501,13 @@ JS_FRIEND_API(void)
 js::SetRuntimeProfilingStack(JSRuntime* rt, ProfileEntry* stack, uint32_t* size, uint32_t max)
 {
     rt->spsProfiler.setProfilingStack(stack, size, max);
+}
+
+JS_FRIEND_API(void)
+js::SetRuntimeProfilingTrace(JSRuntime* rt, TraceEntry* trace, uintptr_t* ptr, size_t max,
+                             char* str, uintptr_t* strPtr, size_t strMax)
+{
+    rt->spsProfiler.setProfilingTrace(trace, ptr, max, str, strPtr, strMax);
 }
 
 JS_FRIEND_API(void)

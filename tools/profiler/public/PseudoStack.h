@@ -7,6 +7,7 @@
 #define PROFILER_PSEUDO_STACK_H_
 
 #include "mozilla/ArrayUtils.h"
+#include "mozilla/UniquePtr.h"
 #include <stdint.h>
 #include "js/ProfilingStack.h"
 #include <stdlib.h>
@@ -252,6 +253,59 @@ public:
     return mPendingMarkers.accessList();
   }
 
+  void pushTrace(const char* aName, bool aCopy)
+  {
+    if (!mTrace || mTracePointer >= TRACE_SIZE) {
+      return;
+    }
+    auto& trace = mTrace[mTracePointer++];
+    if (!aCopy) {
+      trace.mLabel = aName;
+    } else {
+      uintptr_t srcAligned = uintptr_t(aName) & ~(sizeof(intptr_t) - 1);
+      uintptr_t srcLen = (((uintptr_t(aName) + strlen(aName)) |
+          (sizeof(intptr_t) - 1)) + 1) - srcAligned;
+      if (STRPOOL_SIZE - mStrPoolPointer < srcLen) {
+        trace.mLabel = "(anonymous)";
+      } else {
+        memcpy(&mStrPool[mStrPoolPointer],
+            reinterpret_cast<const void*>(srcAligned), srcLen);
+        trace.mLabel = &mStrPool[mStrPoolPointer +
+            (uintptr_t(aName) & (sizeof(intptr_t) - 1))];
+        mStrPoolPointer += srcLen;
+      }
+    }
+#ifdef __linux__
+    clock_gettime(CLOCK_MONOTONIC, &trace.mTime);
+#endif
+  }
+
+  void popTrace()
+  {
+    if (!mTrace || mTracePointer >= TRACE_SIZE) {
+      return;
+    }
+    auto& trace = mTrace[mTracePointer++];
+    trace.mLabel = nullptr;
+#ifdef __linux__
+    clock_gettime(CLOCK_MONOTONIC, &trace.mTime);
+    /*
+    auto& prev = mTrace[mTracePointer - 2];
+    if (prev.mLabel &&
+        ((trace.mTime.tv_sec == prev.mTime.tv_sec &&
+        trace.mTime.tv_nsec - prev.mTime.tv_nsec < 100000) ||
+        (trace.mTime.tv_sec == prev.mTime.tv_sec + 1 &&
+        prev.mTime.tv_nsec - trace.mTime.tv_nsec > (1000000000 - 100000)))) {
+      mTracePointer -= 2;
+      const uintptr_t strIdx = uintptr_t(prev.mLabel) - uintptr_t(&mStrPool[0]);
+      if (strIdx < STRPOOL_SIZE) {
+        mStrPoolPointer = strIdx & ~(sizeof(intptr_t) - 1);
+      }
+    }
+    */
+#endif
+  }
+
   void push(const char *aName, js::ProfileEntry::Category aCategory, uint32_t line)
   {
     push(aName, aCategory, nullptr, false, line);
@@ -264,6 +318,8 @@ public:
       mStackPointer++;
       return;
     }
+
+    pushTrace(aName, aCopy);
 
     // In order to ensure this object is kept alive while it is
     // active, we acquire a reference at the outermost push.  This is
@@ -304,6 +360,9 @@ public:
   bool popAndMaybeDelete()
   {
     mStackPointer--;
+
+    popTrace();
+
     if (mStackPointer == 0) {
       // Release our self-owned reference count.  See 'push'.
       deref();
@@ -341,6 +400,10 @@ public:
                                  (js::ProfileEntry*) mStack,
                                  (uint32_t*) &mStackPointer,
                                  (uint32_t) mozilla::ArrayLength(mStack));
+    if (mTrace) {
+      js::SetRuntimeProfilingTrace(mRuntime, &mTrace[0], &mTracePointer, TRACE_SIZE,
+                                   &mStrPool[0], &mStrPoolPointer, STRPOOL_SIZE);
+    }
     if (mStartJSSampling)
       enableJSSampling();
 #endif
@@ -368,6 +431,7 @@ public:
 
   // Keep a list of active checkpoints
   StackEntry volatile mStack[1024];
+
  private:
 
   // A PseudoStack can only be created via the "create" method.
@@ -382,6 +446,8 @@ public:
 #endif
     , mStartJSSampling(false)
     , mPrivacyMode(false)
+    , mTracePointer(0)
+    , mStrPoolPointer(0)
   { }
 
   // A PseudoStack can only be deleted via deref.
@@ -427,6 +493,14 @@ public:
   bool mStartJSSampling;
   bool mPrivacyMode;
 
+  static const size_t TRACE_SIZE = 2 * 1024 * 1024 / sizeof(js::TraceEntry); // 2MB buffer
+  static const size_t STRPOOL_SIZE = 4 * 1024 * 1024 / sizeof(char); // 4MB buffer
+  mozilla::UniquePtr<js::TraceEntry[]> mTrace;
+  uintptr_t mTracePointer;
+  mozilla::UniquePtr<char[]> mStrPool;
+  uintptr_t mStrPoolPointer;
+
+
   enum SleepState {NOT_SLEEPING, SLEEPING_FIRST, SLEEPING_AGAIN};
 
   // The first time this is called per sleep cycle we return SLEEPING_FIRST
@@ -461,6 +535,23 @@ public:
     int newValue = --mRefCnt;
     if (newValue == 0) {
       delete this;
+    }
+  }
+
+  void enableTracing() {
+    mTracePointer = 0;
+    mStrPoolPointer = 0;
+    if (!mTrace) {
+      mTrace = mozilla::MakeUnique<js::TraceEntry[]>(TRACE_SIZE);
+      mStrPool = mozilla::MakeUnique<char[]>(STRPOOL_SIZE);
+      if (mRuntime) {
+        js::SetRuntimeProfilingTrace(mRuntime, &mTrace[0], &mTracePointer, TRACE_SIZE,
+                                     &mStrPool[0], &mStrPoolPointer, STRPOOL_SIZE);
+      }
+    }
+    for (intptr_t i = 0; i < mStackPointer; ++i) {
+      const auto& entry = mStack[i];
+      pushTrace(entry.label(), entry.isCopyLabel());
     }
   }
 };

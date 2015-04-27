@@ -13,6 +13,10 @@
 
 #include "js/Utility.h"
 
+#ifdef __linux__
+#include <time.h>
+#endif
+
 struct JSRuntime;
 
 namespace js {
@@ -170,9 +174,21 @@ class ProfileEntry
     static size_t offsetOfFlags() { return offsetof(ProfileEntry, flags_); }
 };
 
+struct TraceEntry {
+#ifdef __linux__
+    timespec mTime;
+#endif
+    const char* mLabel;
+};
+
 JS_FRIEND_API(void)
 SetRuntimeProfilingStack(JSRuntime* rt, ProfileEntry* stack, uint32_t* size,
                          uint32_t max);
+
+JS_FRIEND_API(void)
+SetRuntimeProfilingTrace(JSRuntime* rt, TraceEntry* trace, uintptr_t* ptr,
+                         size_t max, char* str, uintptr_t* strPtr,
+                         size_t strMax);
 
 JS_FRIEND_API(void)
 EnableRuntimeProfilingStack(JSRuntime* rt, bool enabled);

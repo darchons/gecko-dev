@@ -124,6 +124,12 @@ class SPSProfiler
     ProfileEntry*        stack_;
     uint32_t*            size_;
     uint32_t             max_;
+    TraceEntry*          trace_;
+    uintptr_t*           tracePtr_;
+    size_t               traceMax_;
+    char*                strPool_;
+    uintptr_t*           strPoolPtr_;
+    size_t               strPoolMax_;
     bool                 slowAssertions;
     uint32_t             enabled_;
     PRLock*              lock_;
@@ -189,6 +195,8 @@ class SPSProfiler
     jsbytecode* ipToPC(JSScript* script, size_t ip) { return nullptr; }
 
     void setProfilingStack(ProfileEntry* stack, uint32_t* size, uint32_t max);
+    void setProfilingTrace(TraceEntry* trace, uintptr_t* ptr, size_t max,
+                           char* str, uintptr_t* strPtr, size_t strMax);
     void setEventMarker(void (*fn)(const char*));
     const char* profileString(JSScript* script, JSFunction* maybeFun);
     void onScriptFinalized(JSScript* script);
