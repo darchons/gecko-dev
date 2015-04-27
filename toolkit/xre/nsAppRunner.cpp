@@ -4326,14 +4326,6 @@ void XRE_GlibInit()
 int
 XREMain::XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
 {
-  ScopedLogging log;
-
-  char aLocal;
-  GeckoProfilerInitRAII profilerGuard(&aLocal);
-
-  PROFILER_LABEL("Startup", "XRE_Main",
-    js::ProfileEntry::Category::OTHER);
-
   nsresult rv = NS_OK;
 
   gArgc = argc;
@@ -4353,6 +4345,8 @@ XREMain::XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
   }
   // used throughout this file
   gAppData = mAppData;
+
+  ScopedLogging log;
 
   mozilla::IOInterposerInit ioInterposerGuard;
 
@@ -4380,6 +4374,12 @@ XREMain::XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
 
   rv = mScopedXPCOM->Initialize();
   NS_ENSURE_SUCCESS(rv, 1);
+
+  char aLocal;
+  GeckoProfilerInitRAII profilerGuard(&aLocal);
+
+  PROFILER_LABEL("Startup", "XRE_Main",
+    js::ProfileEntry::Category::OTHER);
 
   // run!
   rv = XRE_mainRun();

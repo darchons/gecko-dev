@@ -347,15 +347,6 @@ XRE_InitChildProcess(int aArgc,
   }
 #endif
 
-  // NB: This must be called before profiler_init
-  NS_LogInit();
-
-  char aLocal;
-  profiler_init(&aLocal);
-
-  PROFILER_LABEL("Startup", "XRE_InitChildProcess",
-    js::ProfileEntry::Category::OTHER);
-
   // Complete 'task_t' exchange for Mac OS X. This structure has the same size
   // regardless of architecture so we don't have any cross-arch issues here.
 #ifdef XP_MACOSX
@@ -523,9 +514,11 @@ XRE_InitChildProcess(int aArgc,
   base::AtExitManager exitManager;
   NotificationService notificationService;
 
+  // NB: This must be called before profiler_init
+  NS_LogInit();
+
   nsresult rv = XRE_InitCommandLine(aArgc, aArgv);
   if (NS_FAILED(rv)) {
-    profiler_shutdown();
     NS_LogTerm();
     return NS_ERROR_FAILURE;
   }
@@ -599,7 +592,6 @@ XRE_InitChildProcess(int aArgc,
       }
 
       if (!process->Init()) {
-        profiler_shutdown();
         NS_LogTerm();
         return NS_ERROR_FAILURE;
       }
@@ -610,6 +602,12 @@ XRE_InitChildProcess(int aArgc,
       // down or logs off.
       ::SetProcessShutdownParameters(0x280 - 1, SHUTDOWN_NORETRY);
 #endif
+
+      char aLocal;
+      GeckoProfilerInitRAII profilerInit(&aLocal);
+
+      PROFILER_LABEL("Startup", "XRE_InitChildProcess",
+        js::ProfileEntry::Category::OTHER);
 
 #if defined(MOZ_SANDBOX) && defined(XP_WIN)
       // We need to do this after the process has been initialised, as
@@ -628,7 +626,6 @@ XRE_InitChildProcess(int aArgc,
   }
 
   statisticsRecorder = nullptr;
-  profiler_shutdown();
   NS_LogTerm();
   return XRE_DeinitCommandLine();
 }

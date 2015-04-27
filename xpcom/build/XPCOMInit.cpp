@@ -496,12 +496,6 @@ NS_InitXPCOM2(nsIServiceManager** aResult,
 
   mozPoisonValueInit();
 
-  NS_LogInit();
-
-  JS_SetCurrentEmbedderTimeFunction(TimeSinceProcessCreation);
-
-  char aLocal;
-  profiler_init(&aLocal);
   nsresult rv = NS_OK;
 
   // We are not shutting down
@@ -521,6 +515,10 @@ NS_InitXPCOM2(nsIServiceManager** aResult,
   nsSystemInfo::gUserUmask = ::umask(0777);
   ::umask(nsSystemInfo::gUserUmask);
 #endif
+
+  NS_LogInit();
+
+  JS_SetCurrentEmbedderTimeFunction(TimeSinceProcessCreation);
 
   // Set up chromium libs
   NS_ASSERTION(!sExitManager && !sMessageLoop, "Bad logic!");
@@ -555,6 +553,10 @@ NS_InitXPCOM2(nsIServiceManager** aResult,
   if (NS_WARN_IF(NS_FAILED(rv))) {
     return rv;
   }
+
+  // Iniialize profiler after nsThreadManager is initialized.
+  char aLocal;
+  profiler_init(&aLocal);
 
   // Set up the timer globals/timer thread
   rv = nsTimerImpl::Startup();
