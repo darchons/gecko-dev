@@ -6,7 +6,8 @@
 package org.mozilla.gecko;
 
 import org.mozilla.gecko.util.ActivityResultHandler;
-import org.mozilla.gecko.util.GeckoEventListener;
+import org.mozilla.gecko.util.BundleEventListener;
+import org.mozilla.gecko.util.EventCallback;
 import org.mozilla.gecko.util.JSONUtils;
 import org.mozilla.gecko.util.WebActivityMapper;
 
@@ -17,6 +18,7 @@ import org.json.JSONObject;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -26,7 +28,7 @@ import java.net.URLEncoder;
 import java.util.Arrays;
 import java.util.List;
 
-public final class IntentHelper implements GeckoEventListener {
+public final class IntentHelper implements BundleEventListener {
     private static final String LOGTAG = "GeckoIntentHelper";
     private static final String[] EVENTS = {
         "Intent:GetHandlers",
@@ -49,12 +51,12 @@ public final class IntentHelper implements GeckoEventListener {
 
     private IntentHelper(Activity activity) {
         this.activity = activity;
-        EventDispatcher.getInstance().registerGeckoThreadListener(this, EVENTS);
     }
 
     public static IntentHelper init(Activity activity) {
         if (instance == null) {
             instance = new IntentHelper(activity);
+            EventDispatcher.getInstance().registerBackgroundThreadListener(instance, EVENTS);
         } else {
             Log.w(LOGTAG, "IntentHelper.init() called twice, ignoring.");
         }
@@ -64,62 +66,64 @@ public final class IntentHelper implements GeckoEventListener {
 
     public static void destroy() {
         if (instance != null) {
-            EventDispatcher.getInstance().unregisterGeckoThreadListener(instance, EVENTS);
+            EventDispatcher.getInstance().unregisterBackgroundThreadListener(instance, EVENTS);
             instance = null;
         }
     }
 
     @Override
-    public void handleMessage(String event, JSONObject message) {
-        try {
-            if (event.equals("Intent:GetHandlers")) {
-                getHandlers(message);
-            } else if (event.equals("Intent:Open")) {
-                open(message);
-            } else if (event.equals("Intent:OpenForResult")) {
-                openForResult(message);
-            } else if (event.equals("Intent:OpenNoHandler")) {
-                openNoHandler(message);
-            } else if (event.equals("WebActivity:Open")) {
-                openWebActivity(message);
-            }
-        } catch (JSONException e) {
-            Log.e(LOGTAG, "Exception handling message \"" + event + "\":", e);
+    public void handleMessage(String event, Bundle message, EventCallback callback) {
+        // On background thread
+        if (event.equals("Intent:GetHandlers")) {
+            getHandlers(message, callback);
+        } else if (event.equals("Intent:Open")) {
+            open(message);
+        } else if (event.equals("Intent:OpenForResult")) {
+            openForResult(message, callback);
+        } else if (event.equals("Intent:OpenNoHandler")) {
+            openNoHandler(message);
+        } else if (event.equals("WebActivity:Open")) {
+            openWebActivity(message, callback);
         }
     }
 
-    private void getHandlers(JSONObject message) throws JSONException {
+    private void getHandlers(final Bundle message, final EventCallback callback) {
         final Intent intent = GeckoAppShell.getOpenURIIntent(activity,
-                                                             message.optString("url"),
-                                                             message.optString("mime"),
-                                                             message.optString("action"),
-                                                             message.optString("title"));
+                                                             message.getString("url", ""),
+                                                             message.getString("mime", ""),
+                                                             message.getString("action", ""),
+                                                             message.getString("title", ""));
         final List<String> appList = Arrays.asList(GeckoAppShell.getHandlersForIntent(intent));
 
-        final JSONObject response = new JSONObject();
-        response.put("apps", new JSONArray(appList));
-        EventDispatcher.sendResponse(message, response);
+        try {
+            final JSONObject response = new JSONObject();
+            response.put("apps", new JSONArray(appList));
+            callback.sendSuccess(response);
+        } catch (final JSONException e) {
+            Log.e(LOGTAG, "", e);
+        }
     }
 
-    private void open(JSONObject message) throws JSONException {
-        GeckoAppShell.openUriExternal(message.optString("url"),
-                                      message.optString("mime"),
-                                      message.optString("packageName"),
-                                      message.optString("className"),
-                                      message.optString("action"),
-                                      message.optString("title"));
+    private void open(final Bundle message) {
+        GeckoAppShell.openUriExternal(message.getString("url", ""),
+                                      message.getString("mime", ""),
+                                      message.getString("packageName", ""),
+                                      message.getString("className", ""),
+                                      message.getString("action", ""),
+                                      message.getString("title", ""));
     }
 
-    private void openForResult(final JSONObject message) throws JSONException {
+    private void openForResult(final Bundle message, final EventCallback callback) {
         Intent intent = GeckoAppShell.getOpenURIIntent(activity,
-                                                       message.optString("url"),
-                                                       message.optString("mime"),
-                                                       message.optString("action"),
-                                                       message.optString("title"));
-        intent.setClassName(message.optString("packageName"), message.optString("className"));
+                                                       message.getString("url", ""),
+                                                       message.getString("mime", ""),
+                                                       message.getString("action", ""),
+                                                       message.getString("title", ""));
+        intent.setClassName(message.getString("packageName", ""),
+                            message.getString("className", ""));
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
-        final ResultHandler handler = new ResultHandler(message);
+        final ResultHandler handler = new ResultHandler(callback);
         try {
             ActivityHandlerHelper.startIntentForActivity(activity, intent, handler);
         } catch (SecurityException e) {
@@ -133,8 +137,8 @@ public final class IntentHelper implements GeckoEventListener {
      * not specified and there is a fallback url in the intent extras, we open that url. If neither
      * is present, we alert the user that we were unable to open the link.
      */
-    private void openNoHandler(final JSONObject msg) {
-        final String uri = msg.optString("uri");
+    private void openNoHandler(final Bundle msg) {
+        final String uri = msg.getString("uri");
 
         if (TextUtils.isEmpty(uri)) {
             openUnknownProtocolErrorPage("");
@@ -198,16 +202,23 @@ public final class IntentHelper implements GeckoEventListener {
         Tabs.getInstance().loadUrl(errorUri);
     }
 
-    private void openWebActivity(JSONObject message) throws JSONException {
-        final Intent intent = WebActivityMapper.getIntentForWebActivity(message.getJSONObject("activity"));
-        ActivityHandlerHelper.startIntentForActivity(activity, intent, new ResultHandler(message));
+    private void openWebActivity(final Bundle message, final EventCallback callback) {
+        final Intent intent;
+        try {
+            intent = WebActivityMapper.getIntentForWebActivity(
+                    JSONUtils.bundleToJSON(message.getBundle("activity")));
+        } catch (final JSONException e) {
+            Log.e(LOGTAG, "", e);
+            return;
+        }
+        ActivityHandlerHelper.startIntentForActivity(activity, intent, new ResultHandler(callback));
     }
 
     private static class ResultHandler implements ActivityResultHandler {
-        private final JSONObject message;
+        private final EventCallback callback;
 
-        public ResultHandler(JSONObject message) {
-            this.message = message;
+        public ResultHandler(EventCallback callback) {
+            this.callback = callback;
         }
 
         @Override
@@ -225,7 +236,7 @@ public final class IntentHelper implements GeckoEventListener {
                 Log.w(LOGTAG, "Error building JSON response.", e);
             }
 
-            EventDispatcher.sendResponse(message, response);
+            callback.sendSuccess(response);
         }
     }
 }
