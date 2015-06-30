@@ -178,7 +178,6 @@ nsWindow::DumpWindows(const nsTArray<nsWindow*>& wins, int indent)
 nsWindow::nsWindow() :
     mIsVisible(false),
     mParent(nullptr),
-    mIMEMaskSelectionUpdate(false),
     mIMEMaskEventsCount(1), // Mask IME events since there's no focus yet
     mIMERanges(new TextRangeArray()),
     mIMEUpdatingContext(false),
@@ -1646,18 +1645,6 @@ ConvertAndroidColor(uint32_t argb)
                    (argb & 0xff000000) >> 24);
 }
 
-class AutoIMEMask {
-private:
-    bool mOldMask, *mMask;
-public:
-    AutoIMEMask(bool &mask) : mOldMask(mask), mMask(&mask) {
-        mask = true;
-    }
-    ~AutoIMEMask() {
-        *mMask = mOldMask;
-    }
-};
-
 /*
  * Get the current composition object, if any.
  */
@@ -1680,7 +1667,6 @@ nsWindow::RemoveIMEComposition()
     }
 
     nsRefPtr<nsWindow> kungFuDeathGrip(this);
-    AutoIMEMask selMask(mIMEMaskSelectionUpdate);
 
     WidgetCompositionEvent compositionCommitEvent(true,
                                                   NS_COMPOSITION_COMMIT_AS_IS,
@@ -1709,14 +1695,13 @@ nsWindow::SendIMEDummyKeyEvents()
 void
 nsWindow::OnIMEEvent(AndroidGeckoEvent *ae)
 {
-    MOZ_ASSERT(!mIMEMaskSelectionUpdate);
     /*
         Rules for managing IME between Gecko and Java:
 
         * Gecko controls the text content, and Java shadows the Gecko text
            through text updates
-        * Java controls the selection, and Gecko shadows the Java selection
-           through set selection events
+        * Gecko controls the selection, and Java shadows the Gecko selection
+           through selection updates
         * Java controls the composition, and Gecko shadows the Java
            composition through update composition events
     */
@@ -1783,11 +1768,7 @@ nsWindow::OnIMEEvent(AndroidGeckoEvent *ae)
             /*
                 Replace text in Gecko thread from ae->Start() to ae->End()
                   with the string ae->Characters()
-
-                Selection updates are masked so the result of our temporary
-                  selection event is not passed on to Java
             */
-            AutoIMEMask selMask(mIMEMaskSelectionUpdate);
             const auto composition(GetIMEComposition());
             MOZ_ASSERT(!composition || !composition->IsEditorHandlingEvent());
 
@@ -1878,11 +1859,7 @@ nsWindow::OnIMEEvent(AndroidGeckoEvent *ae)
         {
             /*
                 Set Gecko selection to ae->Start() to ae->End()
-
-                Selection updates are masked to prevent Java from being
-                  notified of the new selection
             */
-            AutoIMEMask selMask(mIMEMaskSelectionUpdate);
             RemoveIMEComposition();
             WidgetSelectionEvent selEvent(true, NS_SELECTION_SET, this);
             InitEvent(selEvent, nullptr);
@@ -1937,11 +1914,7 @@ nsWindow::OnIMEEvent(AndroidGeckoEvent *ae)
                   Only the offsets are specified and not the text content
                   to eliminate the possibility of this event altering the
                   text content unintentionally.
-
-                Selection updates are masked so the result of
-                  temporary events are not passed on to Java
             */
-            AutoIMEMask selMask(mIMEMaskSelectionUpdate);
             const auto composition(GetIMEComposition());
             MOZ_ASSERT(!composition || !composition->IsEditorHandlingEvent());
 
@@ -2010,11 +1983,7 @@ nsWindow::OnIMEEvent(AndroidGeckoEvent *ae)
             /*
              *  Remove any previous composition.  This is only used for
              *    visual indication and does not affect the text content.
-             *
-             *  Selection updates are masked so the result of
-             *    temporary events are not passed on to Java
              */
-            AutoIMEMask selMask(mIMEMaskSelectionUpdate);
             RemoveIMEComposition();
             mIMERanges->Clear();
         }
@@ -2081,10 +2050,6 @@ nsWindow::NotifyIMEInternal(const IMENotification& aIMENotification)
             return NS_OK;
 
         case NOTIFY_IME_OF_SELECTION_CHANGE:
-            if (mIMEMaskSelectionUpdate) {
-                return NS_OK;
-            }
-
             ALOGIME("IME: NOTIFY_IME_OF_SELECTION_CHANGE");
 
             PostFlushIMEChanges();
