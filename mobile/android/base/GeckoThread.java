@@ -21,7 +21,12 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.util.Log;
 
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -72,12 +77,181 @@ public class GeckoThread extends Thread implements GeckoEventListener {
 
     private static final Queue<GeckoEvent> PENDING_EVENTS = new ConcurrentLinkedQueue<GeckoEvent>();
 
+    /**
+     * Interface implemented by an object whose availability depends on the Gecko thread state.
+     * Used in conjunction with #newPendingObjectBuffer to provide buffering of method calls
+     * until the object becomes available for calls.
+     */
+    public interface PendingObject {
+        /**
+         * Return whether the object is available in the current state.
+         *
+         * @param geckoState The current GeckoThread state
+         * @return Whether the object is available for calls.
+         */
+        boolean readyForCalls(State geckoState);
+    }
+
+    private static final int BUFFERED_CALLS_COUNT = 16;
+    /* inner */ static final ArrayList<Object> BUFFERED_OBJECTS
+            = new ArrayList<>(BUFFERED_CALLS_COUNT);
+    /* inner */ static final ArrayList<Method> BUFFERED_METHODS
+            = new ArrayList<>(BUFFERED_CALLS_COUNT);
+    /* inner */ static final ArrayList<Object[]> BUFFERED_ARGS
+            = new ArrayList<>(BUFFERED_CALLS_COUNT);
+
+    private static int sNextBufferedCallIndex = 0;
+
     private static GeckoThread sGeckoThread;
 
     private final String mArgs;
     private final String mAction;
     private final String mUri;
     private final boolean mDebugging;
+
+    /**
+     * Create a buffer that will store every call on the given interface, until the given
+     * PendingObject becomes available. Once the object is available, the saved calls are
+     * replayed back on the given object in order.
+     *
+     * In the following example, MyClass.getInstance() is used to get an object for calling
+     * doSomething()/doSomethingElse(). However, depending on the current Gecko thread state,
+     * MyClass.getInstance() returns either a buffer object, when Gecko state is before
+     * LIBS_READY, or a real MyClass object, after Gecko state changes to LIBS_READY. The buffer
+     * object saves all calls to doSomething() and doSomethingElse(). Once the Gecko state
+     * reaches LIBS_READY, all the saved calls will be replayed back, in order, on the real
+     * MyClass object.
+     *
+     * <code>
+     * interface IMyClass {
+     *     void doSomething();
+     *     void doSomethingElse();
+     * }
+     *
+     * class MyClass implments IMyClass, PendingObject
+     * {
+     *     @Override public native void doSomething();
+     *     @Override public native void doSomethingElse();
+     *
+     *     @Override
+     *     public boolean readyForCalls(GeckoThread.State geckoState) {
+     *         if (geckoState.isAtLeast(GeckoThread.State.LIBS_READY)) {
+     *             sInstance = this; // Replace the buffer with the real object.
+     *             return true;
+     *         }
+     *         return false;
+     *     }
+     *
+     *     private static IMyClass sInstance
+     *         = GeckoThread.newPendingObjectBuffer(IMyClass.class, new MyClass());
+     *
+     *     public static IMyClass getInstance() {
+     *         return sInstance;
+     *     }
+     * }
+     * </code>
+     *
+     * @param iface Class of an Interface that the buffer object will implement;
+     *              the interface must only have methods that return void.
+     * @param obj Object that is pending on the current Gecko state;
+     *            must implement iface and must not have public methods
+     *            other than methods from PendingObject and iface.
+     * @return Buffer object that will implement iface and
+     *         will buffer calls made on the interface
+     */
+    public static <T> T newPendingObjectBuffer(final Class<T> iface,
+                                               final PendingObject obj) {
+        if (!AppConstants.RELEASE_BUILD) {
+            if (!iface.isInstance(obj)) {
+                // The pending object must implement the interface given in iface, because
+                // that's the interface whose calls we will buffer when the object is pending.
+                throw new IllegalArgumentException("Object must be implement given interface");
+            }
+            for (Method m : iface.getMethods()) {
+                if (m.getReturnType() != Void.TYPE) {
+                    // The interface must *not* have methods that return values,
+                    // because we don't have values to return when calls are buffered.
+                    throw new IllegalArgumentException("Interface methods must return void");
+                }
+            }
+            for (Method m : obj.getClass().getMethods()) {
+                if (m.getDeclaringClass() == obj.getClass()) {
+                    // Pending objects only work through the given interface. Other public
+                    // methods that the class declares will *not* be buffered by the returned
+                    // object. Consider making these methods private.
+                    throw new IllegalArgumentException(
+                            "Must not have public methods outside of interface");
+                }
+            }
+        }
+
+        synchronized (BUFFERED_OBJECTS) {
+            if (BUFFERED_OBJECTS.size() == 0 && obj.readyForCalls(sState.get())) {
+                // If the object is already ready, return the object itself right away.
+                return iface.cast(obj);
+            }
+        }
+
+        // Return a proxy that will buffer pending calls.
+        return iface.cast(Proxy.newProxyInstance(iface.getClassLoader(),
+                                                 new Class<?>[] { iface },
+                                                 new InvocationHandler() {
+            @Override
+            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                synchronized (BUFFERED_OBJECTS) {
+                    if (BUFFERED_OBJECTS.size() == 0
+                            && obj.readyForCalls(sState.get())) {
+                        // If there's nothing in the buffer and the object
+                        // has just become ready, make the call right away.
+                        return method.invoke(obj, args);
+                    }
+                    // Otherwise, add the pending call to our list for later.
+                    BUFFERED_OBJECTS.add(obj);
+                    BUFFERED_METHODS.add(method);
+                    BUFFERED_ARGS.add(args);
+                }
+                return null;
+            }
+        }));
+    }
+
+    public static void flushPendingObjectCalls() {
+        flushPendingObjectCalls(sState.get());
+    }
+
+    private static void flushPendingObjectCalls(final State newState) {
+        // See if we have pending calls we can make.
+        synchronized (BUFFERED_OBJECTS) {
+            flushPendingObjectCallsLocked(newState);
+        }
+    }
+
+    private static void flushPendingObjectCallsLocked(final State newState) {
+        int i = sNextBufferedCallIndex;
+        for (; i < BUFFERED_OBJECTS.size(); i++) {
+            final Method method = BUFFERED_METHODS.get(i);
+            final PendingObject obj = (PendingObject)BUFFERED_OBJECTS.get(i);
+            if (!obj.readyForCalls(newState)) {
+                break;
+            }
+            try {
+                method.invoke(obj, BUFFERED_ARGS.get(i));
+            } catch (final IllegalAccessException e) {
+                throw new IllegalStateException("Unexpected exception", e);
+            } catch (final InvocationTargetException e) {
+                throw new UnsupportedOperationException("Cannot make buffered call",
+                                                        e.getCause());
+            }
+        }
+
+        sNextBufferedCallIndex = i;
+        if (i == BUFFERED_OBJECTS.size()) {
+            // Emptied our buffer; reset.
+            BUFFERED_OBJECTS.clear();
+            BUFFERED_METHODS.clear();
+            BUFFERED_ARGS.clear();
+        }
+    }
 
     GeckoThread(String args, String action, String uri, boolean debugging) {
         mArgs = args;
@@ -313,12 +487,14 @@ public class GeckoThread extends Thread implements GeckoEventListener {
     private static void setState(final State newState) {
         ThreadUtils.assertOnGeckoThread();
         sState.set(newState);
+        flushPendingObjectCalls(newState);
     }
 
     private static boolean checkAndSetState(final State currentState, final State newState) {
         if (!sState.compareAndSet(currentState, newState)) {
             return false;
         }
+        flushPendingObjectCalls(newState);
         return true;
     }
 }
