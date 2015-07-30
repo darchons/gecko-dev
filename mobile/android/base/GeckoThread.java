@@ -75,8 +75,6 @@ public class GeckoThread extends Thread implements GeckoEventListener {
 
     private static final AtomicReference<State> sState = new AtomicReference<>(State.INITIAL);
 
-    private static final Queue<GeckoEvent> PENDING_EVENTS = new ConcurrentLinkedQueue<GeckoEvent>();
-
     /**
      * Interface implemented by an object whose availability depends on the Gecko thread state.
      * Used in conjunction with #newPendingObjectBuffer to provide buffering of method calls
@@ -215,6 +213,21 @@ public class GeckoThread extends Thread implements GeckoEventListener {
         }));
     }
 
+    /* package */ static void addPendingEvent(final GeckoEvent e) {
+        synchronized (BUFFERED_OBJECTS) {
+            if (BUFFERED_OBJECTS.size() == 0 && isRunning()) {
+                // We may just have switched to running state.
+                GeckoAppShell.notifyGeckoOfEvent(e);
+                e.recycle();
+            } else {
+                // Otherwise, add the pending event to our list in a special format.
+                BUFFERED_OBJECTS.add(e);
+                BUFFERED_METHODS.add(null);
+                BUFFERED_ARGS.add(null);
+            }
+        }
+    }
+
     public static void flushPendingObjectCalls() {
         flushPendingObjectCalls(sState.get());
     }
@@ -230,6 +243,18 @@ public class GeckoThread extends Thread implements GeckoEventListener {
         int i = sNextBufferedCallIndex;
         for (; i < BUFFERED_OBJECTS.size(); i++) {
             final Method method = BUFFERED_METHODS.get(i);
+            if (method == null) {
+                // Special case for pending GeckoEvent objects. To preserve compaibility,
+                // only send pending Gecko events in RUNNING state, i.e. after "Gecko:Ready".
+                if (!newState.is(State.RUNNING)) {
+                    break;
+                }
+                final GeckoEvent e = (GeckoEvent)BUFFERED_OBJECTS.get(i);
+                GeckoAppShell.notifyGeckoOfEvent(e);
+                e.recycle();
+                continue;
+            }
+
             final PendingObject obj = (PendingObject)BUFFERED_OBJECTS.get(i);
             if (!obj.readyForCalls(newState)) {
                 break;
@@ -408,35 +433,12 @@ public class GeckoThread extends Thread implements GeckoEventListener {
         }
     }
 
-    public static void addPendingEvent(final GeckoEvent e) {
-        synchronized (PENDING_EVENTS) {
-            if (isState(State.RUNNING)) {
-                // We may just have switched to running state.
-                GeckoAppShell.notifyGeckoOfEvent(e);
-                e.recycle();
-            } else {
-                // Throws if unable to add the event due to capacity restrictions.
-                PENDING_EVENTS.add(e);
-            }
-        }
-    }
-
     @Override
     public void handleMessage(String event, JSONObject message) {
         if ("Gecko:Ready".equals(event)) {
             Log.d(LOGTAG, "GeckoThread Gecko:Ready");
             EventDispatcher.getInstance().unregisterGeckoThreadListener(this, event);
-
-            // Synchronize with addPendingEvent, so that all pending events are sent,
-            // in order, before we switch to running state.
-            synchronized (PENDING_EVENTS) {
-                GeckoEvent e;
-                while ((e = PENDING_EVENTS.poll()) != null) {
-                    GeckoAppShell.notifyGeckoOfEvent(e);
-                    e.recycle();
-                }
-                setState(State.RUNNING);
-            }
+            setState(State.RUNNING);
         }
     }
 
