@@ -6,14 +6,15 @@
 
 SPHINX_TREES['crash-manager'] = 'docs'
 
-EXTRA_COMPONENTS += [
-    'CrashService.js',
-    'CrashService.manifest',
-]
+if CONFIG['MOZ_WIDGET_TOOLKIT'] != 'android':
+    EXTRA_COMPONENTS += [
+        'CrashService.js',
+        'CrashService.manifest',
+    ]
 
-EXTRA_JS_MODULES += [
-    'CrashManager.jsm',
-]
+    EXTRA_JS_MODULES += [
+        'CrashManager.jsm',
+    ]
 
 TESTING_JS_MODULES += [
     'CrashManagerTest.jsm',
