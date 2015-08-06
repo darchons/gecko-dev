@@ -157,7 +157,7 @@ public:
     {
         // Treat two references of the same object as being the same.
         return Cls::mInstance == other.mInstance &&
-                GetJNIForThread()->IsSameObject(
+                GetEnvForThread()->IsSameObject(
                         Cls::mInstance, other.mInstance) != JNI_FALSE;
     }
 
@@ -329,7 +329,7 @@ public:
     // when going out of scope.
     static LocalRef Adopt(jobject instance)
     {
-        return LocalRef(GetJNIForThread(), instance);
+        return LocalRef(GetEnvForThread(), instance);
     }
 
     static LocalRef Adopt(JNIEnv* env, jobject instance)
@@ -351,7 +351,7 @@ public:
         ref.mInstance = nullptr;
     }
 
-    explicit LocalRef(JNIEnv* env = GetJNIForThread())
+    explicit LocalRef(JNIEnv* env = GetEnvForThread())
         : Ref<Cls>(nullptr)
         , mEnv(env)
     {}
@@ -360,7 +360,7 @@ public:
     // which means creating a new local reference.
     MOZ_IMPLICIT LocalRef(const Ref<Cls>& ref)
         : Ref<Cls>(nullptr)
-        , mEnv(GetJNIForThread())
+        , mEnv(GetEnvForThread())
     {
         Ref<Cls>::mInstance = NewLocalRef(mEnv, ref.mInstance);
     }
@@ -390,7 +390,7 @@ public:
     // Implicitly converts nullptr to LocalRef.
     MOZ_IMPLICIT LocalRef(decltype(nullptr))
         : Ref<Cls>(nullptr)
-        , mEnv(GetJNIForThread())
+        , mEnv(GetEnvForThread())
     {}
 
     ~LocalRef()
@@ -475,7 +475,7 @@ public:
 
     // Copy constructor
     GlobalRef(const GlobalRef& ref)
-        : Ref<Cls>(NewGlobalRef(GetJNIForThread(), ref.mInstance))
+        : Ref<Cls>(NewGlobalRef(GetEnvForThread(), ref.mInstance))
     {}
 
     // Move constructor
@@ -486,7 +486,7 @@ public:
     }
 
     MOZ_IMPLICIT GlobalRef(const Ref<Cls>& ref)
-        : Ref<Cls>(NewGlobalRef(GetJNIForThread(), ref.mInstance))
+        : Ref<Cls>(NewGlobalRef(GetEnvForThread(), ref.mInstance))
     {}
 
     GlobalRef(JNIEnv* env, const Ref<Cls>& ref)
@@ -505,7 +505,7 @@ public:
     ~GlobalRef()
     {
         if (Ref<Cls>::mInstance) {
-            Clear(GetJNIForThread());
+            Clear(GetEnvForThread());
         }
     }
 
@@ -567,7 +567,7 @@ public:
     // Get the length of the jstring.
     size_t Length() const
     {
-        JNIEnv* const env = GetJNIForThread();
+        JNIEnv* const env = GetEnvForThread();
         return env->GetStringLength(Get());
     }
 
@@ -576,7 +576,7 @@ public:
     {
         MOZ_ASSERT(String::mInstance);
 
-        JNIEnv* const env = GetJNIForThread();
+        JNIEnv* const env = GetEnvForThread();
         const jchar* const str = env->GetStringChars(Get(), nullptr);
         const jsize len = env->GetStringLength(Get());
 
@@ -616,22 +616,22 @@ public:
         , mEnv(nullptr)
     {}
 
-    MOZ_IMPLICIT Type(const nsAString& str, JNIEnv* env = GetJNIForThread())
+    MOZ_IMPLICIT Type(const nsAString& str, JNIEnv* env = GetEnvForThread())
         : Ref<String>(GetString(env, str))
         , mEnv(env)
     {}
 
-    MOZ_IMPLICIT Type(const char16_t* str, JNIEnv* env = GetJNIForThread())
+    MOZ_IMPLICIT Type(const char16_t* str, JNIEnv* env = GetEnvForThread())
         : Ref<String>(GetString(env, nsDependentString(str)))
         , mEnv(env)
     {}
 
-    MOZ_IMPLICIT Type(const nsACString& str, JNIEnv* env = GetJNIForThread())
+    MOZ_IMPLICIT Type(const nsACString& str, JNIEnv* env = GetEnvForThread())
         : Ref<String>(GetString(env, NS_ConvertUTF8toUTF16(str)))
         , mEnv(env)
     {}
 
-    MOZ_IMPLICIT Type(const char* str, JNIEnv* env = GetJNIForThread())
+    MOZ_IMPLICIT Type(const char* str, JNIEnv* env = GetEnvForThread())
         : Ref<String>(GetString(env, NS_ConvertUTF8toUTF16(str)))
         , mEnv(env)
     {}
@@ -645,7 +645,7 @@ public:
 
     operator String::LocalRef() const
     {
-        JNIEnv* const env = mEnv ? mEnv : GetJNIForThread();
+        JNIEnv* const env = mEnv ? mEnv : GetEnvForThread();
         const jobject ref = Get();
         // We can't return our existing ref because the returned
         // LocalRef could be freed first, so we need a new local ref.
