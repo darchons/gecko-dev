@@ -10,6 +10,7 @@ EXPORTS += [
 
 SOURCES += [
     'APKOpen.cpp',
+    'GeneratedJNIStubs.cpp',
     'NativeCrypto.cpp',
     'nsGeckoUtils.cpp',
     'NSSBridge.cpp',
