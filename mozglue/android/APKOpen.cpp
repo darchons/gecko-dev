@@ -32,6 +32,7 @@
 #include "NSSBridge.h"
 #include "ElfLoader.h"
 #include "application.ini.h"
+#include "JNIStubs.h"
 
 #include "mozilla/TimeStamp.h"
 
@@ -88,6 +89,28 @@ getLibraryMapping()
 {
   return lib_mapping;
 }
+
+namespace mozilla {
+namespace jni {
+
+mozilla::Vector<mozilla::UniquePtr<JNICallBase>> queued_calls;
+// JNIEnv for use by queued items; should only be set when using the queue.
+JNIEnv* env_for_queue;
+
+void RegisterStubs(JNIEnv* env, const char* clsName,
+                   const JNINativeMethod* methods, size_t count)
+{
+    const jclass cls = env->FindClass(clsName);
+    if (!cls) {
+        MOZ_ASSERT(false, "Failed to find class");
+        return;
+    }
+    env->RegisterNatives(cls, &methods[0], count);
+    env->DeleteLocalRef(cls);
+}
+
+} // namespace jni
+} // namespace mozilla
 
 void
 JNI_Throw(JNIEnv* jenv, const char* classname, const char* msg)
