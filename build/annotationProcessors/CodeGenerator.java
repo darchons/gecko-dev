@@ -24,6 +24,8 @@ public class CodeGenerator {
     private final StringBuilder header = new StringBuilder();
     private final StringBuilder natives = new StringBuilder();
     private final StringBuilder nativesInits = new StringBuilder();
+    private final StringBuilder stubs = new StringBuilder();
+    private final StringBuilder stubsInits = new StringBuilder();
 
     private final Class<?> cls;
     private final String clsName;
@@ -323,6 +325,44 @@ public class CodeGenerator {
                 "        mozilla::jni::MakeNativeMethod<" + traits + ">(\n" +
                 "                mozilla::jni::NativeStub<" + traits + ", Impl>\n" +
                 "                ::template Wrap<&Impl::" + info.wrapperName + ">)");
+
+        if (returnType != Void.TYPE) {
+            // Only support stubs for void return types.
+            return;
+        }
+
+        final String fullName = clsName.replace("::", "_") + '_' + uniqueName;
+        final boolean isStatic = Utils.isStatic(method);
+
+        stubs.append(
+                "constexpr char " + fullName + "_name[] =\n" +
+                "        \"" + Utils.getMemberName(method) + "\";\n" +
+                "constexpr char " + fullName + "_sig[] =\n" +
+                "        \"" + Utils.getSignature(method) + "\";\n" +
+                "\n");
+
+        if (stubsInits.length() != 0) {
+            stubsInits.append(",\n");
+        }
+
+        stubsInits.append(
+                "        { " + fullName + "_name,\n" +
+                "          " + fullName + "_sig,\n" +
+                "          reinterpret_cast<void*>(JNICall<" + isStatic + "\n");
+
+        if (argTypes.length != 0) {
+            stubsInits.append(
+                    "                ");
+            for (Class<?> argType : argTypes) {
+                stubsInits.append(", ").append(Utils.getJNIType(argType, info));
+            }
+            stubsInits.append('\n');
+        }
+
+        stubsInits.append(
+                "                >::QueuingStub<\n" +
+                "                " + fullName + "_name,\n" +
+                "                " + fullName + "_sig>) }");
     }
 
     private String getLiteral(Object val, AnnotationInfo info) {
@@ -551,5 +591,35 @@ public class CodeGenerator {
                 "constexpr JNINativeMethod " + clsName + "::Natives<Impl>::methods[];\n" +
                 "\n");
         return natives.toString();
+    }
+
+    /**
+     * Get the finalised bytes to go into the generated stubs file.
+     *
+     * @return The bytes to be written to the stubs file.
+     */
+    public String getStubsFileContents() {
+        if (stubsInits.length() == 0) {
+            return "";
+        }
+        final String fullName = clsName.replace("::", "_");
+        stubs.append(
+                "namespace {\n" +
+                "void " + fullName + "_register(JNIEnv* env)\n" +
+                "{\n" +
+                "    const JNINativeMethod methods[] = {\n")
+             .append(stubsInits).append('\n')
+             .append(
+                "    };\n" +
+                "    RegisterStubs(env, \"" + cls.getName().replace('.', '/') + "\",\n" +
+                "            methods, sizeof(methods) / sizeof(methods[0]));\n" +
+                "    return REGISTER_PREVIOUS_STUBS(env);\n" +
+                "}\n" +
+                "} // namespace\n" +
+                "\n" +
+                "#undef REGISTER_PREVIOUS_STUBS\n" +
+                "#define REGISTER_PREVIOUS_STUBS(env) " + fullName + "_register(env)\n" +
+                "\n");
+        return stubs.toString();
     }
 }

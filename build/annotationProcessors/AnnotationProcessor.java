@@ -18,6 +18,7 @@ public class AnnotationProcessor {
     public static final String SOURCE_FILE = "GeneratedJNIWrappers.cpp";
     public static final String HEADER_FILE = "GeneratedJNIWrappers.h";
     public static final String NATIVES_FILE = "GeneratedJNINatives.h";
+    public static final String STUBS_FILE = "GeneratedJNIStubs.cpp";
 
     public static final String GENERATED_COMMENT =
             "// GENERATED CODE\n" +
@@ -30,6 +31,7 @@ public class AnnotationProcessor {
     private static final StringBuilder headerFile = new StringBuilder(GENERATED_COMMENT);
     private static final StringBuilder implementationFile = new StringBuilder(GENERATED_COMMENT);
     private static final StringBuilder nativesFile = new StringBuilder(GENERATED_COMMENT);
+    private static final StringBuilder stubsFile = new StringBuilder(GENERATED_COMMENT);
 
     public static void main(String[] args) {
         // We expect a list of jars on the commandline. If missing, whinge about it.
@@ -79,6 +81,15 @@ public class AnnotationProcessor {
                 "namespace widget {\n" +
                 "\n");
 
+        stubsFile.append(
+                "#include \"JNIStubs.h\"\n" +
+                "\n" +
+                "namespace mozilla {\n" +
+                "namespace jni {\n" +
+                "\n" +
+                "#define REGISTER_PREVIOUS_STUBS(env) ((void)0)\n" +
+                "\n");
+
         while (jarClassIterator.hasNext()) {
             generateClass(jarClassIterator.next());
         }
@@ -97,9 +108,19 @@ public class AnnotationProcessor {
                 "} /* mozilla */\n" +
                 "#endif // " + getHeaderGuardName(NATIVES_FILE) + "\n");
 
+        stubsFile.append(
+                "void RegisterGeneratedStubs(JNIEnv* env)\n" +
+                "{\n" +
+                "    return REGISTER_PREVIOUS_STUBS(env);\n" +
+                "}\n" +
+                "\n" +
+                "} // namespace jni\n" +
+                "} // namespace mozilla\n");
+
         writeOutputFile(SOURCE_FILE, implementationFile);
         writeOutputFile(HEADER_FILE, headerFile);
         writeOutputFile(NATIVES_FILE, nativesFile);
+        writeOutputFile(STUBS_FILE, stubsFile);
 
         long e = System.currentTimeMillis();
         System.out.println("Annotation processing complete in " + (e - s) + "ms");
@@ -140,6 +161,7 @@ public class AnnotationProcessor {
         headerFile.append(generatorInstance.getHeaderFileContents());
         implementationFile.append(generatorInstance.getWrapperFileContents());
         nativesFile.append(generatorInstance.getNativesFileContents());
+        stubsFile.append(generatorInstance.getStubsFileContents());
 
         for (ClassWithOptions innerClass : innerClasses) {
             generateClass(innerClass);

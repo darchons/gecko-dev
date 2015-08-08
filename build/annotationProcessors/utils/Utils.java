@@ -131,6 +131,42 @@ public class Utils {
     }
 
     /**
+     * Get the JNI type corresponding to the provided type parameter.
+     *
+     * @param type Class to determine the corresponding JNI type for.
+     * @return JNI type as a String
+     */
+    public static String getJNIType(Class<?> type, AnnotationInfo info) {
+        final String name = type.getName().replace('.', '/');
+
+        if (NATIVE_TYPES.containsKey(name)) {
+            return "j" + name;
+        }
+
+        if (type.isArray()) {
+            final String compName = type.getComponentType().getName();
+            if (NATIVE_ARRAY_TYPES.containsKey(compName)) {
+                return "j" + name + "Array";
+            }
+            return "jobjectArray";
+        }
+
+        if (type == String.class || type == CharSequence.class) {
+            return "jstring";
+        }
+
+        if (type == Class.class) {
+            return "jclass";
+        }
+
+        if (type == Throwable.class) {
+            return "jthrowable";
+        }
+
+        return "jobject";
+    }
+
+    /**
      * Get the JNI class descriptor corresponding to the provided type parameter.
      *
      * @param type Class to determine the corresponding JNI descriptor for.
