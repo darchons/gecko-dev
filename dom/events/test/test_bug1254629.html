@@ -1,0 +1,49 @@
+<!DOCTYPE HTML>
+<html>
+<!--
+https://bugzilla.mozilla.org/show_bug.cgi?id=1254629
+-->
+<head>
+  <title>Test for Bug 1254629</title>
+  <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
+  <script type="application/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
+</head>
+<body>
+<input id="input" value="foo">
+<script type="application/javascript">
+
+/** Test for Bug 1254629 **/
+/**
+ * The bug occurs when an input becomes hidden inside an input or key event
+ * handler. In that case, we expect query selection events to fail.
+ */
+SimpleTest.waitForExplicitFinish();
+
+SimpleTest.waitForFocus(function() {
+  var input = document.getElementById("input");
+
+  input.addEventListener("input", function() {
+    this.value = "";
+    this.style.display = "none";
+  });
+
+  input.focus();
+  input.select();
+
+  var result = synthesizeQuerySelectedText();
+  ok(result.succeeded, "Query selected text should succeed");
+  is(result.offset, 0, "Selected text should be at offset 0");
+  is(result.text, "foo", "Selected text should match");
+
+  synthesizeComposition({ type: "compositioncommit", data: "bar" });
+
+  result = synthesizeQuerySelectedText();
+  ok(!result.succeeded, "Query hidden selection should fail");
+
+  SimpleTest.finish();
+});
+
+</script>
+</body>
+</html>
