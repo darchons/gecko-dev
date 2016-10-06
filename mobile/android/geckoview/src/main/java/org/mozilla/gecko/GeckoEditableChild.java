@@ -23,7 +23,7 @@ import android.view.KeyEvent;
  */
 public final class GeckoEditableChild extends JNIObject implements IGeckoEditableChild {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     private static final String LOGTAG = "GeckoEditableChild";
 
     private static final int NOTIFY_IME_TO_CANCEL_COMPOSITION = 9;

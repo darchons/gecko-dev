@@ -36,7 +36,7 @@ DispatcherDelegate.prototype = {
    */
   registerListener: function(aListener, aEvents) {
     if (!this._dispatcher) {
-      throw new Error("Can only listen in parent process");
+      throw new Error("Can only listen in parent process: " + (new Error()).stack);
     }
     this._dispatcher.registerListener(aListener, aEvents);
   },
@@ -49,7 +49,7 @@ DispatcherDelegate.prototype = {
    */
   unregisterListener: function(aListener, aEvents) {
     if (!this._dispatcher) {
-      throw new Error("Can only listen in parent process");
+      throw new Error("Can only listen in parent process: " + (new Error()).stack);
     }
     this._dispatcher.unregisterListener(aListener, aEvents);
   },

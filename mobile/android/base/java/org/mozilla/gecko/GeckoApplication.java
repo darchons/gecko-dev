@@ -113,6 +113,7 @@ public class GeckoApplication extends Application
 
     public static @Nullable String[] getDefaultGeckoArgs() {
         if (!AppConstants.MOZILLA_OFFICIAL) {
+/*
             // In un-official builds, we want to load Javascript resources fresh
             // with each build.  In official builds, the startup cache is purged by
             // the buildid mechanism, but most un-official builds don't bump the
@@ -120,6 +121,7 @@ public class GeckoApplication extends Application
             Log.w(LOG_TAG, "STARTUP PERFORMANCE WARNING: un-official build: purging the " +
                            "startup (JavaScript) caches.");
             return new String[] { "-purgecaches" };
+*/
         }
         return new String[0];
     }

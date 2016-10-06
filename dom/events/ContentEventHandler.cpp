@@ -6,6 +6,7 @@
 
 #include "ContentEventHandler.h"
 #include "mozilla/IMEStateManager.h"
+#include "mozilla/Logging.h"
 #include "mozilla/TextComposition.h"
 #include "mozilla/TextEvents.h"
 #include "mozilla/dom/Element.h"
@@ -37,6 +38,8 @@ namespace mozilla {
 
 using namespace dom;
 using namespace widget;
+
+LazyLogModule sCEHLog("ContentEventHandler");
 
 /******************************************************************/
 /* ContentEventHandler::RawRange                                  */
@@ -2775,6 +2778,21 @@ ContentEventHandler::OnQueryDOMWidgetHittest(WidgetQueryContentEvent* aEvent)
   return NS_OK;
 }
 
+NS_ConvertUTF16toUTF8
+GetNodeName(nsINode* aNode, nsIContent* aRootContent = nullptr)
+{
+  nsAutoString name(aNode->NodeName());
+
+  if (aRootContent && aNode != aRootContent) {
+    nsINode* parent = aNode->GetParentNode();
+    while (parent && parent != aRootContent) {
+      name += NS_LITERAL_STRING("<") + parent->NodeName();
+      parent = parent->GetParentNode();
+    }
+  }
+  return NS_ConvertUTF16toUTF8(name);
+}
+
 /* static */ nsresult
 ContentEventHandler::GetFlatTextLengthInRange(
                        const NodePosition& aStartPosition,
@@ -2789,7 +2807,20 @@ ContentEventHandler::GetFlatTextLengthInRange(
     return NS_ERROR_INVALID_ARG;
   }
 
+  MOZ_LOG(sCEHLog, LogLevel::Debug, (
+          "ContentEventHandler::GetFlatTextLengthInRange("
+          "sn=%s sp=%d sa=%d en=%s ep=%d ea=%d r=%s lb=%d)",
+          GetNodeName(aStartPosition.Container(), aRootContent).get(),
+          int(aStartPosition.Offset()),
+          int(aStartPosition.mAfterOpenTag),
+          GetNodeName(aEndPosition.Container(), aRootContent).get(),
+          int(aEndPosition.Offset()),
+          int(aEndPosition.mAfterOpenTag),
+          GetNodeName(aRootContent).get(),
+          int(aLineBreakType)));
+
   if (aStartPosition == aEndPosition) {
+    MOZ_LOG(sCEHLog, LogLevel::Debug, (" zero length"));
     *aLength = 0;
     return NS_OK;
   }
@@ -2807,6 +2838,7 @@ ContentEventHandler::GetFlatTextLengthInRange(
   // be called after here.  However, the node was already removed from the
   // array of children of its parent.  So, be careful to handle this case.
   if (aIsRemovingNode) {
+    MOZ_LOG(sCEHLog, LogLevel::Debug, (" removing node"));
     DebugOnly<nsIContent*> parent = aStartPosition.Container()->GetParent();
     MOZ_ASSERT(parent && parent->ComputeIndexOf(aStartPosition.Container()) == -1,
       "At removing the node, the node shouldn't be in the array of children "
@@ -2868,6 +2900,15 @@ ContentEventHandler::GetFlatTextLengthInRange(
       if (NS_WARN_IF(NS_FAILED(rv))) {
         return rv;
       }
+
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (
+              " range sn=%s sp=%d en=%s ep=%d r=%s",
+              GetNodeName(prevRawRange.GetStartContainer(), aRootContent).get(),
+              int(prevRawRange.StartOffset()),
+              GetNodeName(prevRawRange.GetEndContainer(), aRootContent).get(),
+              int(prevRawRange.EndOffset()),
+              GetNodeName(prevRawRange.GetRoot()).get()));
+
     } else if (endPosition.Container() != aRootContent) {
       // Offset is past node's length; set end of range to end of node
       rv = prevRawRange.SetEndAfter(endPosition.Container());
@@ -2879,6 +2920,15 @@ ContentEventHandler::GetFlatTextLengthInRange(
       if (NS_WARN_IF(NS_FAILED(rv))) {
         return rv;
       }
+
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (
+              " range end sn=%s sp=%d en=%s ep=%d r=%s",
+              GetNodeName(prevRawRange.GetStartContainer(), aRootContent).get(),
+              int(prevRawRange.StartOffset()),
+              GetNodeName(prevRawRange.GetEndContainer(), aRootContent).get(),
+              int(prevRawRange.EndOffset()),
+              GetNodeName(prevRawRange.GetRoot()).get()));
+
     } else {
       // Offset is past the root node; set end of range to end of root node
       iter = NS_NewPreContentIterator();
@@ -2886,6 +2936,9 @@ ContentEventHandler::GetFlatTextLengthInRange(
       if (NS_WARN_IF(NS_FAILED(rv))) {
         return rv;
       }
+
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (
+              " root r=%s", GetNodeName(prevRawRange.GetRoot()).get()));
     }
   }
 
@@ -2893,9 +2946,13 @@ ContentEventHandler::GetFlatTextLengthInRange(
   for (; !iter->IsDone(); iter->Next()) {
     nsINode* node = iter->GetCurrentNode();
     if (NS_WARN_IF(!node)) {
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (" null node"));
       break;
     }
+
     if (!node->IsContent()) {
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (
+              " non-content n=%s", GetNodeName(node, aRootContent).get()));
       continue;
     }
     nsIContent* content = node->AsContent();
@@ -2910,20 +2967,35 @@ ContentEventHandler::GetFlatTextLengthInRange(
       } else {
         *aLength += GetTextLength(content, aLineBreakType);
       }
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (
+              " text n=%s l=%d",
+              GetNodeName(node, aRootContent).get(),
+              int(*aLength)));
     } else if (ShouldBreakLineBefore(content, aRootContent)) {
       // If the start position is start of this node but doesn't include the
       // open tag, don't append the line break length.
       if (node == aStartPosition.Container() && !aStartPosition.IsBeforeOpenTag()) {
+        MOZ_LOG(sCEHLog, LogLevel::Debug, (
+                " skip start br n=%s", GetNodeName(node, aRootContent).get()));
         continue;
       }
       // If the end position is before the open tag, don't append the line
       // break length.
       if (node == endPosition.Container() && endPosition.IsBeforeOpenTag()) {
+        MOZ_LOG(sCEHLog, LogLevel::Debug, (
+                " skip end br n=%s", GetNodeName(node, aRootContent).get()));
         continue;
       }
       *aLength += GetBRLength(aLineBreakType);
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (
+              " br n=%s l=%d", GetNodeName(node, aRootContent).get(),
+              int(*aLength)));
+    } else {
+      MOZ_LOG(sCEHLog, LogLevel::Debug, (
+              " skip n=%s", GetNodeName(node, aRootContent).get()));
     }
   }
+  MOZ_LOG(sCEHLog, LogLevel::Debug, (" end l=%d", int(*aLength)));
   return NS_OK;
 }
 

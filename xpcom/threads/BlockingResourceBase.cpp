@@ -276,6 +276,10 @@ BlockingResourceBase::CheckAcquire()
     return;
   }
 
+  if (!sDeadlockDetector) {
+    return;
+  }
+
   BlockingResourceBase* chainFront = ResourceChainFront();
   nsAutoPtr<DDT::ResourceAcquisitionArray> cycle(
     sDeadlockDetector->CheckAcquisition(

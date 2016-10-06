@@ -60,7 +60,7 @@ import android.view.inputmethod.EditorInfo;
                Editable,
                SessionTextInput.EditableClient {
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
     private static final String LOGTAG = "GeckoEditable";
 
     // Filters to implement Editable's filtering functionality
@@ -328,6 +328,17 @@ import android.view.inputmethod.EditorInfo;
                 return;
             }
 
+            if (DEBUG) {
+                final android.util.LogPrinter logPrinter =
+                        new android.util.LogPrinter(Log.DEBUG, LOGTAG);
+                Log.d(LOGTAG, debugAppend(new StringBuilder("Shadow:  "),
+                                          mShadowText).toString());
+                TextUtils.dumpSpans(mShadowText, logPrinter, "Shadow:  ");
+                Log.d(LOGTAG, debugAppend(new StringBuilder("Current: "),
+                                          mCurrentText).toString());
+                TextUtils.dumpSpans(mCurrentText, logPrinter, "Current: ");
+            }
+
             // Copy the portion of the current text that has changed over to the shadow
             // text, with consideration for any concurrent changes in the shadow text.
             final int start = Math.min(mShadowStart, mCurrentStart);
@@ -365,6 +376,14 @@ import android.view.inputmethod.EditorInfo;
 
             if (DEBUG && !checkEqualText(mShadowText, mCurrentText)) {
                 // Sanity check.
+                final android.util.LogPrinter logPrinter =
+                        new android.util.LogPrinter(Log.DEBUG, LOGTAG);
+                Log.d(LOGTAG, debugAppend(new StringBuilder("Shadow:  "),
+                                          mShadowText).toString());
+                TextUtils.dumpSpans(mShadowText, logPrinter, "Shadow:  ");
+                Log.d(LOGTAG, debugAppend(new StringBuilder("Current: "),
+                                          mCurrentText).toString());
+                TextUtils.dumpSpans(mCurrentText, logPrinter, "Current: ");
                 throw new IllegalStateException("Failed to sync: " +
                         mShadowStart + '-' + mShadowOldEnd + '-' + mShadowNewEnd + '/' +
                         mCurrentStart + '-' + mCurrentOldEnd + '-' + mCurrentNewEnd);

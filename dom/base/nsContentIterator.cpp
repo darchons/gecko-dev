@@ -5,6 +5,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "mozilla/DebugOnly.h"
+#include "mozilla/Logging.h"
 #include "nsISupports.h"
 #include "nsIContentIterator.h"
 #include "nsRange.h"
@@ -18,6 +19,8 @@
 
 using mozilla::DebugOnly;
 using mozilla::RawRangeBoundary;
+
+static mozilla::LazyLogModule sCILog("nsContentIterator");
 
 // couple of utility static functs
 

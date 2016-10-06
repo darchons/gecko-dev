@@ -224,6 +224,7 @@ loadGeckoLibs(const char *apkName)
     __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Couldn't get a handle to libxul!");
     return FAILURE;
   }
+  dlopenAPKLibrary(apkName, "libsoftokn3.so");
 
   TimeStamp t1 = TimeStamp::Now();
   struct rusage usage2_thread, usage2;

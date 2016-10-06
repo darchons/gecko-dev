@@ -65,6 +65,7 @@ private:
     }
     nsINode* GetStartContainer() const { return mStart.Container(); }
     nsINode* GetEndContainer() const { return mEnd.Container(); }
+    nsINode* GetRoot() const { return mRoot; }
     uint32_t StartOffset() const { return mStart.Offset(); }
     uint32_t EndOffset() const { return mEnd.Offset(); }
     nsIContent* StartRef() const { return mStart.Ref(); }

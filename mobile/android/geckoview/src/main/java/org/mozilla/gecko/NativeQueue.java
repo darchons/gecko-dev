@@ -231,4 +231,18 @@ public class NativeQueue {
         mQueue.clear();
         mState = initial;
     }
+
+    public void dumpQueuedCalls() {
+        synchronized (mQueue) {
+            for (int i = 0; i < mQueue.size(); i++) {
+                final QueuedCall call = mQueue.get(i);
+                if (call == null) {
+                    Log.d(LOGTAG, "QUEUED: null");
+                    continue;
+                }
+                Log.d(LOGTAG, "QUEUED: " + call.target + '.' + call.method + '(' +
+                        (call.args != null ? call.args.length : 0) + ") @ " + call.state);
+            }
+        }
+    }
 }
