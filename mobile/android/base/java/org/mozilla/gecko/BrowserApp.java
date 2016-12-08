@@ -1442,6 +1442,8 @@ public class BrowserApp extends GeckoApp
 
     @Override
     public void onDestroy() {
+        Log.i(LOGTAG, "onDestroy");
+
         if (mIsAbortingAppLaunch) {
             super.onDestroy();
             return;

@@ -509,6 +509,7 @@ public class GeckoThread extends Thread {
 
         final GeckoBundle data = new GeckoBundle(1);
         data.putBoolean("restart", restarting);
+        Log.i(LOGTAG, "Sending Gecko:Exited");
         EventDispatcher.getInstance().dispatch("Gecko:Exited", data);
 
         // Remove pumpMessageLoop() idle handler

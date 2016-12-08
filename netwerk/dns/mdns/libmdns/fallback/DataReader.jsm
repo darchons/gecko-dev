@@ -6,7 +6,10 @@
 
 'use strict';
 
-var EXPORTED_SYMBOLS = ['DataReader'];
+XPCOMUtils.defineLazyModuleGetter(this, "Log",
+  "resource://gre/modules/AndroidLog.jsm", "AndroidLog");
+
+this.EXPORTED_SYMBOLS = ['DataReader'];
 
 class DataReader {
   // `data` is `Uint8Array`
@@ -45,7 +48,12 @@ class DataReader {
 
   getString(length) {
     let uint8Array = this.getBytes(length);
-    return _uint8ArrayToString(uint8Array);
+    try {
+        return _uint8ArrayToString(uint8Array);
+    } catch (e) {
+        Log.e("MDNS", "Error: " + e);
+        Log.e("MDNS", (new Error()).stack);
+    }
   }
 
   getValue(length) {
