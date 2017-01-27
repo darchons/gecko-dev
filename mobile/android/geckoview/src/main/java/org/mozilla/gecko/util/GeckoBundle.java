@@ -741,59 +741,76 @@ public final class GeckoBundle implements Parcelable {
 
     @Override // Object
     public boolean equals(Object other) {
+        android.util.Log.i("testEventDispatcher", "GeckoBundle: equals");
         if (!(other instanceof GeckoBundle)) {
+            android.util.Log.i("testEventDispatcher", "GeckoBundle: not bundle");
             return false;
         }
 
         // Support library's SimpleArrayMap.equals is buggy, so roll our own version.
         final SimpleArrayMap<String, Object> otherMap = ((GeckoBundle) other).mMap;
         if (mMap == otherMap) {
+            android.util.Log.i("testEventDispatcher", "GeckoBundle: same map");
             return true;
         }
         if (mMap.size() != otherMap.size()) {
+            android.util.Log.i("testEventDispatcher", "GeckoBundle: different size");
             return false;
         }
 
         for (int i = 0; i < mMap.size(); i++) {
             final String thisKey = mMap.keyAt(i);
+            android.util.Log.i("testEventDispatcher", "GeckoBundle: comparing " + thisKey);
             final int otherKey = otherMap.indexOfKey(thisKey);
             if (otherKey < 0) {
+                android.util.Log.i("testEventDispatcher", "GeckoBundle: key not in other");
                 return false;
             }
             final Object thisValue = normalizeValue(mMap.valueAt(i));
             final Object otherValue = normalizeValue(otherMap.valueAt(otherKey));
+            android.util.Log.i("testEventDispatcher", "GeckoBundle: normalized to " + thisValue + " and " + otherValue);
             if (thisValue == otherValue) {
+                android.util.Log.i("testEventDispatcher", "GeckoBundle: same value");
                 continue;
             } else if (thisValue == null || otherValue == null) {
+                android.util.Log.i("testEventDispatcher", "GeckoBundle: null value");
                 return false;
             }
 
             final Class<?> thisClass = thisValue.getClass();
             final Class<?> otherClass = otherValue.getClass();
             if (thisClass != otherClass && !thisClass.equals(otherClass)) {
+                android.util.Log.i("testEventDispatcher", "GeckoBundle: different class");
                 return false;
             } else if (!thisClass.isArray()) {
                 if (!thisValue.equals(otherValue)) {
+                    android.util.Log.i("testEventDispatcher", "GeckoBundle: different value");
                     return false;
                 }
+                android.util.Log.i("testEventDispatcher", "GeckoBundle: equal value");
                 continue;
             }
 
             // Work with both primitive arrays and Object arrays, unlike Arrays.equals().
             final int thisLen = Array.getLength(thisValue);
             final int otherLen = Array.getLength(otherValue);
+            android.util.Log.i("testEventDispatcher", "GeckoBundle: array " + thisLen + " and " + otherLen);
             if (thisLen != otherLen) {
+                android.util.Log.i("testEventDispatcher", "GeckoBundle: different len");
                 return false;
             }
             for (int j = 0; j < thisLen; j++) {
                 final Object thisElem = Array.get(thisValue, j);
                 final Object otherElem = Array.get(otherValue, j);
+                android.util.Log.i("testEventDispatcher", "GeckoBundle: elem at " + j + ": " + thisElem + " and " + otherElem);
                 if (thisElem != otherElem && (thisElem == null ||
                         otherElem == null || !thisElem.equals(otherElem))) {
+                    android.util.Log.i("testEventDispatcher", "GeckoBundle: different elem");
                     return false;
                 }
             }
         }
+        android.util.Log.i("testEventDispatcher", "GeckoBundle: equal");
         return true;
     }
 

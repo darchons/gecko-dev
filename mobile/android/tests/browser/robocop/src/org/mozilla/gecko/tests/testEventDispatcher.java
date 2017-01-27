@@ -468,6 +468,8 @@ public class testEventDispatcher extends JavascriptBridgeTest implements BundleE
                 fAssertTrue("JS success response should be on background thread",
                             ThreadUtils.isOnBackgroundThread());
                 fAssertEquals("JS response mode is correct", mode, "success");
+                android.util.Log.i("testEventDispatcher",
+                        "Comparing " + refBundle.get(key) + " with " + result + " for " + key);
                 fAssertEquals("JS success response is correct", refBundle.get(key), result);
             }
 
