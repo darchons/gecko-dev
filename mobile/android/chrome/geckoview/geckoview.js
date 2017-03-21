@@ -366,3 +366,5 @@ function startup() {
   // so things like text selection can work properly.
   browser.focus();
 }
+
+window.addEventListener("load", startup);
