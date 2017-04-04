@@ -112,6 +112,9 @@ public final class EventDispatcher extends JNIObject {
                                       final T listener,
                                       final String[] events) {
         try {
+            if (events.length == 0) {
+                throw new IllegalArgumentException("Empty events list");
+            }
             synchronized (listenersMap) {
                 for (final String event : events) {
                     if (event == null) {
@@ -163,6 +166,9 @@ public final class EventDispatcher extends JNIObject {
     private <T> void unregisterListener(final Map<String, List<T>> listenersMap,
                                         final T listener,
                                         final String[] events) {
+        if (events.length == 0) {
+            throw new IllegalArgumentException("Empty events list");
+        }
         synchronized (listenersMap) {
             for (final String event : events) {
                 if (event == null) {
