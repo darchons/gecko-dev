@@ -609,12 +609,12 @@ ElfLoader::~ElfLoader()
          it < list.rend(); ++it) {
       if ((*it)->AsSystemElf()) {
         DEBUG_LOG("ElfLoader::~ElfLoader(): Remaining handle for \"%s\" "
-                  "[%d direct refs, %d refs total]", (*it)->GetPath(),
-                  (*it)->DirectRefCount(), (*it)->refCount());
+                  "[%" PRIdPTR " direct refs, %" PRIdPTR " refs total]",
+                  (*it)->GetPath(), (*it)->DirectRefCount(), (*it)->refCount());
       } else {
         DEBUG_LOG("ElfLoader::~ElfLoader(): Unexpected remaining handle for \"%s\" "
-                  "[%d direct refs, %d refs total]", (*it)->GetPath(),
-                  (*it)->DirectRefCount(), (*it)->refCount());
+                  "[%" PRIdPTR " direct refs, %" PRIdPTR " refs total]",
+                  (*it)->GetPath(), (*it)->DirectRefCount(), (*it)->refCount());
         /* Not removing, since it could have references to other libraries,
          * destroying them as a side effect, and possibly leaving dangling
          * pointers in the handle list we're scanning */
@@ -970,7 +970,7 @@ ElfLoader::DebuggerHelper::Remove(ElfLoader::link_map *map)
   dbg->r_brk();
 }
 
-#if defined(ANDROID)
+#if defined(ANDROID) && defined(__NR_sigaction)
 /* As some system libraries may be calling signal() or sigaction() to
  * set a SIGSEGV handler, effectively breaking MappableSeekableZStream,
  * or worse, restore our SIGSEGV handler with wrong flags (which using
@@ -1046,6 +1046,18 @@ Divert(T func, T new_func)
   memcpy(reinterpret_cast<void *>(addr), start, len);
   *reinterpret_cast<void **>(addr + len) = FunctionPtr(new_func);
   cacheflush(addr, addr + len + sizeof(void *), 0);
+  return true;
+#elif defined(__aarch64__)
+  const uint32_t trampoline[] = {
+    0x58000050, // ldr x16, [pc, #8]
+    0xd61f0200, // br x16
+                // .word <new_func.lo>
+                // .word <new_func.hi>
+  };
+  const size_t len = sizeof(trampoline) + sizeof(void*);
+  EnsureWritable w(ptr, len);
+  memcpy(ptr, trampoline, sizeof(trampoline));
+  *reinterpret_cast<void**>(addr + sizeof(trampoline)) = FunctionPtr(new_func);
   return true;
 #else
   return false;
