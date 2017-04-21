@@ -32,7 +32,7 @@ ANRReporter::RequestNativeStack(bool aUnwind)
         features = NATIVE_STACK_UNWIND_FEATURES;
         features_size = sizeof(NATIVE_STACK_UNWIND_FEATURES);
         // We want the new unwinder if the unwind mode has not been set yet
-        putenv("MOZ_PROFILER_NEW=1");
+        putenv(const_cast<char*>("MOZ_PROFILER_NEW=1"));
     }
 
     const char *NATIVE_STACK_THREADS[] =
