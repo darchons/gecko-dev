@@ -403,7 +403,7 @@ public class GeckoAppShell
 
     private static class DefaultListeners implements SensorEventListener,
                                                      LocationListener,
-                                                     NotificationListener,
+                                                     NotificationDelegate,
                                                      ScreenOrientationDelegate,
                                                      WakeLockDelegate,
                                                      HapticFeedbackDelegate {
@@ -526,14 +526,14 @@ public class GeckoAppShell
         {
         }
 
-        @Override // NotificationListener
+        @Override // NotificationDelegate
         public void showNotification(String name, String cookie, String host,
                                      String title, String text, String imageUrl) {
             // Default is to not show the notification, and immediate send close message.
             GeckoAppShell.onNotificationClose(name, cookie);
         }
 
-        @Override // NotificationListener
+        @Override // NotificationDelegate
         public void showPersistentNotification(String name, String cookie, String host,
                                                String title, String text, String imageUrl,
                                                String data) {
@@ -541,7 +541,7 @@ public class GeckoAppShell
             GeckoAppShell.onNotificationClose(name, cookie);
         }
 
-        @Override // NotificationListener
+        @Override // NotificationDelegate
         public void closeNotification(String name) {
             // Do nothing.
         }
@@ -616,7 +616,7 @@ public class GeckoAppShell
     private static final DefaultListeners DEFAULT_LISTENERS = new DefaultListeners();
     private static SensorEventListener sSensorListener = DEFAULT_LISTENERS;
     private static LocationListener sLocationListener = DEFAULT_LISTENERS;
-    private static NotificationListener sNotificationListener = DEFAULT_LISTENERS;
+    private static NotificationDelegate sNotificationDelegate = DEFAULT_LISTENERS;
     private static WakeLockDelegate sWakeLockDelegate = DEFAULT_LISTENERS;
     private static HapticFeedbackDelegate sHapticFeedbackDelegate = DEFAULT_LISTENERS;
 
@@ -641,12 +641,12 @@ public class GeckoAppShell
         sLocationListener = (listener != null) ? listener : DEFAULT_LISTENERS;
     }
 
-    public static NotificationListener getNotificationListener() {
-        return sNotificationListener;
+    public static NotificationDelegate getNotificationDelegate() {
+        return sNotificationDelegate;
     }
 
-    public static void setNotificationListener(final NotificationListener listener) {
-        sNotificationListener = (listener != null) ? listener : DEFAULT_LISTENERS;
+    public static void setNotificationDelegate(final NotificationDelegate listener) {
+        sNotificationDelegate = (listener != null) ? listener : DEFAULT_LISTENERS;
     }
 
     public static ScreenOrientationDelegate getScreenOrientationDelegate() {
@@ -955,7 +955,7 @@ public class GeckoAppShell
     private static native void notifyAlertListener(String name, String topic, String cookie);
 
     /**
-     * Called by the NotificationListener to notify Gecko that a notification has been
+     * Called by the NotificationDelegate to notify Gecko that a notification has been
      * shown.
      */
     public static void onNotificationShow(final String name, final String cookie) {
@@ -965,7 +965,7 @@ public class GeckoAppShell
     }
 
     /**
-     * Called by the NotificationListener to notify Gecko that a previously shown
+     * Called by the NotificationDelegate to notify Gecko that a previously shown
      * notification has been closed.
      */
     public static void onNotificationClose(final String name, final String cookie) {
@@ -975,7 +975,7 @@ public class GeckoAppShell
     }
 
     /**
-     * Called by the NotificationListener to notify Gecko that a previously shown
+     * Called by the NotificationDelegate to notify Gecko that a previously shown
      * notification has been clicked on.
      */
     public static void onNotificationClick(final String name, final String cookie) {
@@ -989,17 +989,17 @@ public class GeckoAppShell
                                          String text, String host, String imageUrl,
                                          String persistentData) {
         if (persistentData == null) {
-            getNotificationListener().showNotification(name, cookie, title, text, host, imageUrl);
+            getNotificationDelegate().showNotification(name, cookie, title, text, host, imageUrl);
             return;
         }
 
-        getNotificationListener().showPersistentNotification(
+        getNotificationDelegate().showPersistentNotification(
                 name, cookie, title, text, host, imageUrl, persistentData);
     }
 
     @WrapForJNI(calledFrom = "gecko")
     private static void closeNotification(String name) {
-        getNotificationListener().closeNotification(name);
+        getNotificationDelegate().closeNotification(name);
     }
 
     public static synchronized void setDisplayDpiOverride(@Nullable final Integer dpi) {

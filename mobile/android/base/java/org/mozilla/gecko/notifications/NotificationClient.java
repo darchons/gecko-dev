@@ -21,7 +21,7 @@ import org.mozilla.gecko.AppConstants;
 import org.mozilla.gecko.GeckoActivityMonitor;
 import org.mozilla.gecko.GeckoAppShell;
 import org.mozilla.gecko.GeckoService;
-import org.mozilla.gecko.NotificationListener;
+import org.mozilla.gecko.NotificationDelegate;
 import org.mozilla.gecko.R;
 import org.mozilla.gecko.util.BitmapUtils;
 
@@ -30,7 +30,7 @@ import java.util.HashMap;
 /**
  * Client for posting notifications.
  */
-public final class NotificationClient implements NotificationListener {
+public final class NotificationClient implements NotificationDelegate {
     private static final String LOGTAG = "GeckoNotificationClient";
     /* package */ static final String CLICK_ACTION = AppConstants.ANDROID_PACKAGE_NAME + ".NOTIFICATION_CLICK";
     /* package */ static final String CLOSE_ACTION = AppConstants.ANDROID_PACKAGE_NAME + ".NOTIFICATION_CLOSE";
@@ -58,13 +58,13 @@ public final class NotificationClient implements NotificationListener {
         mNotificationManager = NotificationManagerCompat.from(mContext);
     }
 
-    @Override // NotificationListener
+    @Override // NotificationDelegate
     public void showNotification(String name, String cookie, String title,
                                  String text, String host, String imageUrl) {
         showNotification(name, cookie, title, text, host, imageUrl, /* data */ null);
     }
 
-    @Override // NotificationListener
+    @Override // NotificationDelegate
     public void showPersistentNotification(String name, String cookie, String title,
                                            String text, String host, String imageUrl,
                                            String data) {
@@ -122,7 +122,7 @@ public final class NotificationClient implements NotificationListener {
         GeckoAppShell.onNotificationShow(name, cookie);
     }
 
-    @Override // NotificationListener
+    @Override // NotificationDelegate
     public void closeNotification(String name)
     {
         remove(name);

@@ -499,7 +499,7 @@ public final class NotificationHelper implements BundleEventListener {
 
         }
 
-        ((NotificationClient) GeckoAppShell.getNotificationListener()).add(id, builder.build());
+        ((NotificationClient) GeckoAppShell.getNotificationDelegate()).add(id, builder.build());
 
         final boolean persistent = message.getBoolean(PERSISTENT_ATTR);
         // We add only not persistent notifications to the list since we want to purge only
@@ -556,7 +556,7 @@ public final class NotificationHelper implements BundleEventListener {
     }
 
     private void closeNotification(String id, String handlerKey, String cookie) {
-        ((NotificationClient) GeckoAppShell.getNotificationListener()).remove(id);
+        ((NotificationClient) GeckoAppShell.getNotificationDelegate()).remove(id);
     }
 
     public void hideNotification(String id, String handlerKey, String cookie) {

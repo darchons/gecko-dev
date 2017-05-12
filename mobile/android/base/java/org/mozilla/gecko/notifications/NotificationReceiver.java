@@ -55,7 +55,7 @@ public class NotificationReceiver extends BroadcastReceiver {
             }
 
             final NotificationClient client = (NotificationClient)
-                    GeckoAppShell.getNotificationListener();
+                    GeckoAppShell.getNotificationDelegate();
             client.onNotificationClose(data.getQueryParameter(NotificationHelper.ID_ATTR));
             return;
         }
@@ -111,7 +111,7 @@ public class NotificationReceiver extends BroadcastReceiver {
             GeckoAppShell.onNotificationClose(name, cookie);
 
             final NotificationClient client = (NotificationClient)
-                    GeckoAppShell.getNotificationListener();
+                    GeckoAppShell.getNotificationDelegate();
             client.onNotificationClose(name);
         }
     }
