@@ -5,7 +5,7 @@
 
 var PermissionsHelper = {
   _permissonTypes: ["password", "geolocation", "popup", "indexedDB",
-                    "offline-app", "desktop-notification", "plugins", "native-intent"],
+                    "offline-app", "desktop-notification", "plugins"],
   _permissionStrings: {
     "password": {
       label: "password.logins",
@@ -42,11 +42,6 @@ var PermissionsHelper = {
       allowed: "clickToPlayPlugins.activate",
       denied: "clickToPlayPlugins.dontActivate"
     },
-    "native-intent": {
-      label: "helperapps.openWithList2",
-      allowed: "helperapps.always",
-      denied: "helperapps.never"
-    }
   },
 
   onEvent: function onEvent(event, data, callback) {
