@@ -211,9 +211,9 @@ MappableExtractFile::Create(const char *name, Zip *zip, Zip::Stream *stream)
       ERROR("Couldn't initialize XZ decoder");
       return nullptr;
     }
-    DEBUG_LOG("XZStream created, compressed=%" PRIuPTR
-              ", uncompressed=%" PRIuPTR,
-              xzStream.Size(), xzStream.UncompressedSize());
+    LOG("XZStream created, compressed=%" PRIuPTR
+        ", uncompressed=%" PRIuPTR,
+        xzStream.Size(), xzStream.UncompressedSize());
 
     if (ftruncate(fd, xzStream.UncompressedSize()) == -1) {
       ERROR("Couldn't ftruncate %s to decompress library", file.get());

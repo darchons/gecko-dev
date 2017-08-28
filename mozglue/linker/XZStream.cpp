@@ -126,9 +126,11 @@ XZStream::Decode(void* aOutBuf, size_t aOutSize)
         return 0;
 
       case XZ_DATA_ERROR:
-        MOZ_FALLTHROUGH;
-      case XZ_BUF_ERROR:
         ERROR("XZ decoding: corrupt input stream");
+        return 0;
+
+      case XZ_BUF_ERROR:
+        ERROR("XZ decoding: buffer full");
         return 0;
 
       default:
