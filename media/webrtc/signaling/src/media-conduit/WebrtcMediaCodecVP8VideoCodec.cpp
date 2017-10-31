@@ -167,7 +167,7 @@ static MediaCodec::LocalRef CreateDecoder(const char* aMimeType)
   }
 
   MediaCodec::LocalRef codec;
-  MediaCodec::CreateDecoderByType(aMimeType, &codec);
+  Unused << MediaCodec::CreateDecoderByType(aMimeType, &codec);
   return codec;
 }
 
@@ -178,7 +178,7 @@ static MediaCodec::LocalRef CreateEncoder(const char* aMimeType)
   }
 
   MediaCodec::LocalRef codec;
-  MediaCodec::CreateEncoderByType(aMimeType, &codec);
+  Unused << MediaCodec::CreateEncoderByType(aMimeType, &codec);
   return codec;
 }
 
@@ -383,8 +383,8 @@ public:
       mOutputDrain = nullptr;
     }
 
-    mCoder->Stop();
-    mCoder->Release();
+    Unused << mCoder->Stop();
+    Unused << mCoder->Release();
     isStarted = false;
     return NS_OK;
   }
@@ -576,7 +576,7 @@ public:
   }
 
   void ReleaseOutputBuffer(int32_t index, bool flag) {
-    mCoder->ReleaseOutputBuffer(index, flag);
+    Unused << mCoder->ReleaseOutputBuffer(index, flag);
   }
 
   jobjectArray GetInputBuffers() {
@@ -883,9 +883,9 @@ int32_t WebrtcMediaCodecVP8VideoEncoder::Encode(
       jobject buffer = env->GetObjectArrayElement(mOutputBuffers, outputIndex);
       if (buffer) {
         int32_t offset;
-        bufferInfo->Offset(&offset);
+        Unused << bufferInfo->Offset(&offset);
         int32_t flags;
-        bufferInfo->Flags(&flags);
+        Unused << bufferInfo->Flags(&flags);
 
         // The buffer will be null on Android L if we are decoding to a Surface
         void* directBuffer = reinterpret_cast<uint8_t*>(env->GetDirectBufferAddress(buffer)) + offset;
@@ -898,7 +898,7 @@ int32_t WebrtcMediaCodecVP8VideoEncoder::Encode(
         mEncodedImage._completeFrame = true;
 
         int32_t size;
-        bufferInfo->Size(&size);
+        Unused << bufferInfo->Size(&size);
 #ifdef WEBRTC_MEDIACODEC_DEBUG
         CSFLogDebug(LOGTAG,  "%s dequeue output buffer ok, index:%d, buffer size = %d, buffer offset = %d, flags = %d", __FUNCTION__, outputIndex, size, offset, flags);
 #endif
@@ -1076,11 +1076,11 @@ int32_t WebrtcMediaCodecVP8VideoRemoteEncoder::Encode(
     return WEBRTC_VIDEO_CODEC_ERROR;
   }
 
-  if((*frame_types)[0] == webrtc::kVideoFrameKey) {
-    bufferInfo->Set(0, size, inputImage.render_time_ms() * PR_USEC_PER_MSEC, MediaCodec::BUFFER_FLAG_SYNC_FRAME);
-  } else {
-    bufferInfo->Set(0, size, inputImage.render_time_ms() * PR_USEC_PER_MSEC, 0);
-  }
+  const int32_t flags = (*frame_types)[0] == webrtc::kVideoFrameKey ?
+      MediaCodec::BUFFER_FLAG_SYNC_FRAME : 0;
+  Unused << bufferInfo->Set(0, size,
+                            inputImage.render_time_ms() * PR_USEC_PER_MSEC,
+                            flags);
 
   mJavaEncoder->Input(bytes, bufferInfo, nullptr);
 

@@ -410,7 +410,8 @@ private:
 
     void HandleOutputFormatChanged(MediaFormat::Param aFormat) override
     {
-      aFormat->GetInteger(NS_LITERAL_STRING("channel-count"), &mOutputChannels);
+      Unused << aFormat->GetInteger(NS_LITERAL_STRING("channel-count"),
+                                    &mOutputChannels);
       AudioConfig::ChannelLayout layout(mOutputChannels);
       if (!layout.IsValid()) {
         mDecoder->Error(MediaResult(
@@ -418,7 +419,8 @@ private:
           RESULT_DETAIL("Invalid channel layout:%d", mOutputChannels)));
         return;
       }
-      aFormat->GetInteger(NS_LITERAL_STRING("sample-rate"), &mOutputSampleRate);
+      Unused << aFormat->GetInteger(NS_LITERAL_STRING("sample-rate"),
+                                    &mOutputSampleRate);
       LOG("Audio output format changed: channels:%d sample rate:%d",
           mOutputChannels, mOutputSampleRate);
     }
@@ -535,7 +537,7 @@ RemoteDataDecoder::Drain()
       return DecodePromise::CreateAndReject(NS_ERROR_OUT_OF_MEMORY, __func__);
     }
     mDrainStatus = DrainStatus::DRAINING;
-    bufferInfo->Set(0, 0, -1, MediaCodec::BUFFER_FLAG_END_OF_STREAM);
+    Unused << bufferInfo->Set(0, 0, -1, MediaCodec::BUFFER_FLAG_END_OF_STREAM);
     mJavaDecoder->Input(nullptr, bufferInfo, nullptr);
     return p;
   });
@@ -624,12 +626,12 @@ GetCryptoInfoFromSample(const MediaRawData* aSample)
   auto keyId = mozilla::jni::ByteArray::New(
     reinterpret_cast<const int8_t*>(&cryptoObj.mKeyId[0]),
     cryptoObj.mKeyId.Length());
-  cryptoInfo->Set(numSubSamples,
-                  numBytesOfPlainData,
-                  numBytesOfEncryptedData,
-                  keyId,
-                  iv,
-                  MediaCodec::CRYPTO_MODE_AES_CTR);
+  Unused << cryptoInfo->Set(numSubSamples,
+                            numBytesOfPlainData,
+                            numBytesOfEncryptedData,
+                            keyId,
+                            iv,
+                            MediaCodec::CRYPTO_MODE_AES_CTR);
 
   return cryptoInfo;
 }
@@ -651,7 +653,8 @@ RemoteDataDecoder::Decode(MediaRawData* aSample)
       return DecodePromise::CreateAndReject(
         MediaResult(NS_ERROR_OUT_OF_MEMORY, __func__), __func__);
     }
-    bufferInfo->Set(0, sample->Size(), sample->mTime.ToMicroseconds(), 0);
+    Unused << bufferInfo->Set(0, sample->Size(),
+                              sample->mTime.ToMicroseconds(), 0);
 
     self->mDrainStatus = DrainStatus::DRAINABLE;
     return self->mJavaDecoder->Input(bytes, bufferInfo, GetCryptoInfoFromSample(sample))

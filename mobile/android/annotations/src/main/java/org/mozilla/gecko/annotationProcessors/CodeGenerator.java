@@ -234,6 +234,8 @@ public class CodeGenerator {
                                        boolean isStatic) {
 
         return (isStatic ? "static " : "") +
+            (info.exceptionMode == AnnotationInfo.ExceptionMode.NSRESULT ? "MOZ_MUST_USE "
+                                                                         : "") +
             generatePrototype(name, argTypes, returnType, info,
                               /* includeScope */ false, /* includeArgName */ false,
                               /* isConst */ !isStatic) + ';';

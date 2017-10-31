@@ -167,17 +167,17 @@ StackScrollerFlingAnimation::StackScrollerFlingAnimation(AsyncPanZoomController&
     if (flingDuration.ToMilliseconds() < gfxPrefs::APZFlingAccelInterval()
         && velocity.Length() >= gfxPrefs::APZFlingAccelMinVelocity()) {
       bool unused = false;
-      mOverScroller->ComputeScrollOffset(flingDuration.ToMilliseconds(), &unused);
+      Unused << mOverScroller->ComputeScrollOffset(flingDuration.ToMilliseconds(), &unused);
     } else {
-      mOverScroller->ForceFinished(true);
+      Unused << mOverScroller->ForceFinished(true);
     }
   }
-  mOverScroller->Fling(originX, originY,
-                       // Android needs the velocity in pixels per second and it is in pixels per ms.
-                       (int32_t)(velocity.x * 1000.0f), (int32_t)(velocity.y * 1000.0f),
-                       (int32_t)floor(scrollRangeStartX), (int32_t)ceil(scrollRangeEndX),
-                       (int32_t)floor(scrollRangeStartY), (int32_t)ceil(scrollRangeEndY),
-                       0, 0, 0);
+  Unused << mOverScroller->Fling(originX, originY,
+                                 // Android needs the velocity in pixels per second and it is in pixels per ms.
+                                 (int32_t)(velocity.x * 1000.0f), (int32_t)(velocity.y * 1000.0f),
+                                 (int32_t)floor(scrollRangeStartX), (int32_t)ceil(scrollRangeEndX),
+                                 (int32_t)floor(scrollRangeStartY), (int32_t)ceil(scrollRangeEndY),
+                                 0, 0, 0);
   state->mLastFling = TimeStamp::Now();
 }
 
@@ -194,12 +194,12 @@ StackScrollerFlingAnimation::DoSample(FrameMetrics& aFrameMetrics,
   bool shouldContinueFling = true;
 
   mFlingDuration += aDelta.ToMilliseconds();
-  mOverScroller->ComputeScrollOffset(mFlingDuration, &shouldContinueFling);
+  Unused << mOverScroller->ComputeScrollOffset(mFlingDuration, &shouldContinueFling);
 
   int32_t currentX = 0;
   int32_t currentY = 0;
-  mOverScroller->GetCurrX(&currentX);
-  mOverScroller->GetCurrY(&currentY);
+  Unused << mOverScroller->GetCurrX(&currentX);
+  Unused << mOverScroller->GetCurrY(&currentY);
   ParentLayerPoint offset((float)currentX, (float)currentY);
   ParentLayerPoint preCheckedOffset(offset);
 
@@ -214,8 +214,8 @@ StackScrollerFlingAnimation::DoSample(FrameMetrics& aFrameMetrics,
   // of the fling, then end the animation.
   if (offset != mPreviousOffset) {
     if (aDelta.ToMilliseconds() > 0) {
-      mOverScroller->GetCurrSpeedX(&velocity.x);
-      mOverScroller->GetCurrSpeedY(&velocity.y);
+      Unused << mOverScroller->GetCurrSpeedX(&velocity.x);
+      Unused << mOverScroller->GetCurrSpeedY(&velocity.y);
 
       velocity.x /= 1000;
       velocity.y /= 1000;
@@ -238,7 +238,7 @@ StackScrollerFlingAnimation::DoSample(FrameMetrics& aFrameMetrics,
     if (shouldContinueFling) {
       // The OverScroller thinks it should continue but the speed is below
       // the stopping threshold so abort the animation.
-      mOverScroller->AbortAnimation();
+      Unused << mOverScroller->AbortAnimation();
     }
     // This animation is going to end. If DeferHandleFlingOverscroll
     // has not been called and there is still some velocity left,

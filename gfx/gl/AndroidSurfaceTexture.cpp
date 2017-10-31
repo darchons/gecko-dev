@@ -6,6 +6,7 @@
 
 #ifdef MOZ_WIDGET_ANDROID
 
+#include "mozilla/Unused.h"
 #include "AndroidSurfaceTexture.h"
 
 using namespace mozilla;
@@ -20,7 +21,7 @@ AndroidSurfaceTexture::GetTransformMatrix(java::sdk::SurfaceTexture::Param surfa
   JNIEnv* const env = jni::GetEnvForThread();
 
   auto jarray = jni::FloatArray::LocalRef::Adopt(env, env->NewFloatArray(16));
-  surfaceTexture->GetTransformMatrix(jarray);
+  Unused << surfaceTexture->GetTransformMatrix(jarray);
 
   jfloat* array = env->GetFloatArrayElements(jarray.Get(), nullptr);
 
