@@ -13,6 +13,7 @@ import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.support.annotation.NonNull;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
 
@@ -169,6 +170,13 @@ public class LayerSession {
     private float mViewportTop;
     private float mViewportZoom = 1.0f;
 
+    private Matrix mMatrix;
+    private final DisplayMetrics mMetrics = new DisplayMetrics();
+
+    public LayerSession() {
+        mMetrics.setToDefaults();
+    }
+
     /**
      * Get the PanZoomController instance for this session.
      *
@@ -244,6 +252,9 @@ public class LayerSession {
         ThreadUtils.assertOnUiThread();
 
         getClientToSurfaceMatrix(matrix);
+        if (mMatrix != null) {
+            matrix.postConcat(mMatrix);
+        }
         matrix.postTranslate(mLeft, mTop);
     }
 
@@ -277,6 +288,9 @@ public class LayerSession {
         ThreadUtils.assertOnUiThread();
 
         getPageToSurfaceMatrix(matrix);
+        if (mMatrix != null) {
+            matrix.postConcat(mMatrix);
+        }
         matrix.postTranslate(mLeft, mTop);
     }
 
@@ -505,6 +519,15 @@ public class LayerSession {
             ThreadUtils.assertOnUiThread();
         }
 
+        // Even if the display doesn't update us with metrics. Make sure our
+        // screen is at least the size of the surface.
+        if (mMetrics.widthPixels < mWidth) {
+            mMetrics.widthPixels = mWidth;
+        }
+        if (mMetrics.heightPixels < mHeight) {
+            mMetrics.heightPixels = mHeight;
+        }
+
         final int toolbarHeight;
         if (mToolbar != null) {
             toolbarHeight = mToolbar.getCurrentToolbarHeight();
@@ -568,5 +591,23 @@ public class LayerSession {
         mLeft = left;
         mTop = top;
         onWindowBoundsChanged();
+    }
+
+    public void onTransformationMatrixChanged(final Matrix matrix) {
+        ThreadUtils.assertOnUiThread();
+
+        if (matrix == null || matrix.isIdentity()) {
+            mMatrix = null;
+        } else if (mMatrix == null) {
+            mMatrix = new Matrix(matrix);
+        } else {
+            mMatrix.set(matrix);
+        }
+    }
+
+    public void onDisplayMetricsChanged(final DisplayMetrics metrics) {
+        ThreadUtils.assertOnUiThread();
+
+        mMetrics.setTo(metrics);
     }
 }

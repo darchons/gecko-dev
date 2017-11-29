@@ -6,6 +6,8 @@
 
 package org.mozilla.geckoview;
 
+import android.graphics.Matrix;
+import android.util.DisplayMetrics;
 import android.view.Surface;
 
 /**
@@ -71,5 +73,29 @@ public class GeckoDisplay {
      */
     public boolean shouldPinOnScreen() {
         return session.getDisplay() == this && session.shouldPinOnScreen();
+    }
+
+    /**
+     * Optional callback. The display's transformation matrix has changed. Must be called
+     * on the application main thread. To map a point in display coordinates to screen
+     * coordinates, the point is multiplied with the transformation matrix and then added
+     * to the screen origin.
+     *
+     * @param matrix The transformation matrix from display units to screen pixels,
+     *               or null to use an identity matrix.
+     * @see #screenOriginChanged(int, int)
+     */
+    public void transformationMatrixChanged(final Matrix matrix) {
+        session.onTransformationMatrixChanged(matrix);
+    }
+
+    /**
+     * Optional callback. Metrics for the display's screen has changed. Must be called on
+     * the application main thread.
+     *
+     * @param metrics New metrics for the display's screen.
+     */
+    public void displayMetricsChanged(final DisplayMetrics metrics) {
+        session.onDisplayMetricsChanged(metrics);
     }
 }
