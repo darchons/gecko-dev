@@ -32,6 +32,7 @@
 #include "SQLiteBridge.h"
 #include "NSSBridge.h"
 #include "ElfLoader.h"
+#include "Logging.h"
 #include "application.ini.h"
 
 #include "mozilla/arm.h"
@@ -95,6 +96,13 @@ JNI_Throw(JNIEnv* jenv, const char* classname, const char* msg)
         exit(FAILURE);
     }
     jenv->DeleteLocalRef(cls);
+}
+
+static void
+JNI_ThrowLinkerError(JNIEnv* jenv, const char* classname, const char* defaultMsg)
+{
+    JNI_Throw(jenv, classname, *gLastLinkerError ? gLastLinkerError : defaultMsg);
+    *gLastLinkerError = '\0';
 }
 
 namespace {
@@ -312,7 +320,7 @@ Java_org_mozilla_gecko_mozglue_GeckoLoader_loadGeckoLibsNative(JNIEnv *jenv, jcl
 
   int res = loadGeckoLibs(str);
   if (res != SUCCESS) {
-    JNI_Throw(jenv, "java/lang/Exception", "Error loading gecko libraries");
+    JNI_ThrowLinkerError(jenv, "java/lang/Exception", "Error loading gecko libraries");
   }
   jenv->ReleaseStringUTFChars(jApkName, str);
 }
@@ -329,7 +337,7 @@ Java_org_mozilla_gecko_mozglue_GeckoLoader_loadSQLiteLibsNative(JNIEnv *jenv, jc
   __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Load sqlite start\n");
   mozglueresult rv = loadSQLiteLibs(str);
   if (rv != SUCCESS) {
-      JNI_Throw(jenv, "java/lang/Exception", "Error loading sqlite libraries");
+      JNI_ThrowLinkerError(jenv, "java/lang/Exception", "Error loading sqlite libraries");
   }
   __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Load sqlite done\n");
   jenv->ReleaseStringUTFChars(jApkName, str);
@@ -347,7 +355,7 @@ Java_org_mozilla_gecko_mozglue_GeckoLoader_loadNSSLibsNative(JNIEnv *jenv, jclas
   __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Load nss start\n");
   mozglueresult rv = loadNSSLibs(str);
   if (rv != SUCCESS) {
-    JNI_Throw(jenv, "java/lang/Exception", "Error loading nss libraries");
+    JNI_ThrowLinkerError(jenv, "java/lang/Exception", "Error loading nss libraries");
   }
   __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Load nss done\n");
   jenv->ReleaseStringUTFChars(jApkName, str);

@@ -228,7 +228,7 @@ MappableExtractFile::Create(const char *name, Zip *zip, Zip::Stream *stream)
     const size_t written = xzStream.Decode(buffer, buffer.GetLength());
     DEBUG_LOG("XZStream decoded %" PRIuPTR, written);
     if (written != buffer.GetLength()) {
-      ERROR("Error decoding XZ file %s", file.get());
+      ERROR("Error decoding XZ file %s", name);
       return nullptr;
     }
   } else {

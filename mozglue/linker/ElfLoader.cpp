@@ -41,6 +41,8 @@ inline int sigaltstack(const stack_t *ss, stack_t *oss) {
 
 } /* extern "C" */
 #endif /* __ANDROID_API__ */
+
+char gLastLinkerError[256];
 #endif /* ANDROID */
 
 #ifdef __ARM_EABI__

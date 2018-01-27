@@ -10,9 +10,14 @@
 
 #ifdef ANDROID
 #include <android/log.h>
+#include <cstdio>
+extern char gLastLinkerError[256];
 #define LOG(...) __android_log_print(ANDROID_LOG_INFO, "GeckoLinker", __VA_ARGS__)
 #define WARN(...) __android_log_print(ANDROID_LOG_WARN, "GeckoLinker", __VA_ARGS__)
-#define ERROR(...) __android_log_print(ANDROID_LOG_ERROR, "GeckoLinker", __VA_ARGS__)
+#define ERROR(...) do { \
+    snprintf(gLastLinkerError, sizeof(gLastLinkerError), __VA_ARGS__); \
+    __android_log_write(ANDROID_LOG_ERROR, "GeckoLinker", gLastLinkerError); \
+  } while(0)
 #else
 #include <cstdio>
 
