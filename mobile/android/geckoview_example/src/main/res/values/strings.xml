@@ -15,6 +15,7 @@
     <string name="media_microphone">Microphone</string>
     <string name="media_other">Unknown source</string>
 
+    <string name="new_view">New GeckoView</string>
     <string name="crash_native">Native</string>
     <string name="crash_java">Java</string>
     <string name="crash_content_native">Content (Native)</string>
@@ -26,4 +27,10 @@
     <string name="crashed_title">GeckoView Example Crashed</string>
     <string name="crashed_text">Tap to report to Mozilla.</string>
     <string name="crashed_ignore">Ignore</string>
+    <string name="find">Find</string>
+    <string name="find_link">Find Link</string>
+    <string name="clear">Clear</string>
+    <string name="highlight">Highlight All</string>
+    <string name="dim">Dim Page</string>
+    <string name="outline">Link Outline</string>
 </resources>

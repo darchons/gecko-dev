@@ -34,6 +34,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
 
@@ -222,12 +223,47 @@ public class GeckoViewActivity extends AppCompatActivity {
         menu.findItem(R.id.action_tp).setChecked(mUseTrackingProtection);
         menu.findItem(R.id.action_pb).setChecked(mUsePrivateBrowsing);
         menu.findItem(R.id.action_forward).setEnabled(mCanGoForward);
+        menu.findItem(R.id.action_highlight).setChecked((
+                mGeckoSession.getFinder().getDisplayFlags() &
+                        GeckoSession.FINDER_DISPLAY_HIGHLIGHT_ALL) != 0);
+        menu.findItem(R.id.action_dim).setChecked((
+                mGeckoSession.getFinder().getDisplayFlags() &
+                        GeckoSession.FINDER_DISPLAY_DIM_PAGE) != 0);
+        menu.findItem(R.id.action_outline).setChecked((
+                mGeckoSession.getFinder().getDisplayFlags() &
+                        GeckoSession.FINDER_DISPLAY_DRAW_LINK_OUTLINE) != 0);
         return true;
+    }
+
+    private static ViewGroup getParent(View view) {
+        return (ViewGroup)view.getParent();
+    }
+
+    private static void removeView(View view) {
+        ViewGroup parent = getParent(view);
+        if(parent != null) {
+            parent.removeView(view);
+        }
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.action_new_view: {
+                final ViewGroup parent = getParent(mGeckoView);
+                final GeckoSession session = mGeckoView.releaseSession();
+                final int index = parent.indexOfChild(mGeckoView);
+                removeView(mGeckoView);
+
+                final GeckoView newGeckoView = new GeckoView(GeckoViewActivity.this);
+                newGeckoView.setSession(session, sGeckoRuntime);
+                newGeckoView.setId(mGeckoView.getId());
+                parent.addView(newGeckoView, index, mGeckoView.getLayoutParams());
+
+                mGeckoSession = session;
+                mGeckoView = newGeckoView;
+                break;
+            }
             case R.id.action_reload:
                 mGeckoSession.reload();
                 break;
@@ -246,6 +282,31 @@ public class GeckoViewActivity extends AppCompatActivity {
             case R.id.action_pb:
                 mUsePrivateBrowsing = !mUsePrivateBrowsing;
                 recreateSession();
+                break;
+            case R.id.action_find:
+                mGeckoSession.getFinder().find("the", 0);
+                break;
+            case R.id.action_find_link:
+                mGeckoSession.getFinder().find("fire",
+                                               GeckoSession.FINDER_FIND_LINKS_ONLY);
+                break;
+            case R.id.action_clear:
+                mGeckoSession.getFinder().clear();
+                break;
+            case R.id.action_highlight:
+                mGeckoSession.getFinder().setDisplayFlags(
+                        mGeckoSession.getFinder().getDisplayFlags() ^
+                                GeckoSession.FINDER_DISPLAY_HIGHLIGHT_ALL);
+                break;
+            case R.id.action_dim:
+                mGeckoSession.getFinder().setDisplayFlags(
+                        mGeckoSession.getFinder().getDisplayFlags() ^
+                                GeckoSession.FINDER_DISPLAY_DIM_PAGE);
+                break;
+            case R.id.action_outline:
+                mGeckoSession.getFinder().setDisplayFlags(
+                        mGeckoSession.getFinder().getDisplayFlags() ^
+                                GeckoSession.FINDER_DISPLAY_DRAW_LINK_OUTLINE);
                 break;
             default:
                 return super.onOptionsItemSelected(item);

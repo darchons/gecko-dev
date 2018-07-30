@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:title="@string/new_view" android:id="@+id/action_new_view"/>
     <item android:title="@string/multiprocess" android:id="@+id/action_e10s" android:checkable="true"
           android:showAsAction="never"/>
     <item android:title="@string/tracking_protection" android:id="@+id/action_tp" android:showAsAction="never"
@@ -7,4 +8,25 @@
     <item android:title="@string/private_browsing" android:checkable="true" android:id="@+id/action_pb"/>
     <item android:title="@string/forward" android:id="@+id/action_forward"/>
     <item android:title="@string/reload" android:id="@+id/action_reload"/>
+    <item
+        android:id="@+id/action_find"
+        android:title="@string/find" />
+    <item
+        android:id="@+id/action_find_link"
+        android:title="@string/find_link" />
+    <item
+        android:id="@+id/action_clear"
+        android:title="@string/clear" />
+    <item
+        android:id="@+id/action_highlight"
+        android:checkable="true"
+        android:title="@string/highlight" />
+    <item
+        android:id="@+id/action_dim"
+        android:checkable="true"
+        android:title="@string/dim" />
+    <item
+        android:id="@+id/action_outline"
+        android:checkable="true"
+        android:title="@string/outline" />
 </menu>
