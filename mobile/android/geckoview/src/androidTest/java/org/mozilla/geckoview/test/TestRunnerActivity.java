@@ -63,7 +63,8 @@ public class TestRunnerActivity extends Activity {
 
         @Override
         public GeckoResult<String> onLoadError(GeckoSession session, String uri, int category, int error) {
-            return null;
+            // Some tests expect navigating to an actual error page.
+            return GeckoResult.fromValue("about:blank");
         }
     };
 
