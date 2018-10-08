@@ -65,5 +65,5 @@ class GeckoViewContentSettings extends GeckoViewContentModule {
   }
 }
 
-let {debug, warn} = GeckoViewContentSettings.initLogging("GeckoViewSettings");
+let {debug, warn} = GeckoViewContentSettings.initLogging("Settings");
 let module = GeckoViewContentSettings.create(this);

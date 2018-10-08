@@ -375,6 +375,8 @@ var GeckoViewUtils = {
    * @param aScope Scope to add the logging functions to.
    */
   initLogging: function(aTag, aScope) {
+    aTag = "GeckoView." + aTag.replace(/^GeckoView\.?/, "");
+
     // Only provide two levels for simplicity.
     // For "info", use "debug" instead.
     // For "error", throw an actual JS error instead.

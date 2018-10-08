@@ -51,5 +51,5 @@ class GeckoViewNavigationContent extends GeckoViewContentModule {
   }
 }
 
-let {debug, warn} = GeckoViewNavigationContent.initLogging("GeckoViewNavigation");
+let {debug, warn} = GeckoViewNavigationContent.initLogging("Navigation");
 let module = GeckoViewNavigationContent.create(this);

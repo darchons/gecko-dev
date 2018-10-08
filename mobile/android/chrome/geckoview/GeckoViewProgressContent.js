@@ -327,5 +327,5 @@ const ProgressTracker = {
 };
 
 
-let {debug, warn} = GeckoViewProgressContent.initLogging("GeckoViewProgress");
+let {debug, warn} = GeckoViewProgressContent.initLogging("Progress");
 let module = GeckoViewProgressContent.create(this);

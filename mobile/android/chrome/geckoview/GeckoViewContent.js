@@ -371,5 +371,5 @@ class GeckoViewContent extends GeckoViewContentModule {
   }
 }
 
-let {debug, warn} = GeckoViewContent.initLogging("GeckoViewContent");
+let {debug, warn} = GeckoViewContent.initLogging("Content");
 let module = GeckoViewContent.create(this);
