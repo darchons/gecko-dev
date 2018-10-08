@@ -401,6 +401,7 @@ var GeckoViewUtils = {
     if (!this._rootLogger) {
       this._rootLogger = Log.repository.getLogger("GeckoView");
       this._rootLogger.addAppender(new AndroidAppender());
+      this._rootLogger.manageLevelFromPref("geckoview.logging.enabled");
     }
     return this._rootLogger;
   },
